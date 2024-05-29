@@ -25,7 +25,7 @@ def ejecutar_proceso(output_dir, template_file):
     engine = obtener_conexion()
     
     # Obtener todos los registros de la base de datos
-    df = pd.read_sql_query("SELECT * FROM cabrales.segipsa_placo", engine)
+    df = pd.read_sql_query("SELECT * FROM cabrales.segipsa_placo where exp='217210' or exp='217431'", engine)
     
     # Definir consultas SQL y campos correspondientes
     consultas_campos = {
@@ -74,10 +74,9 @@ def ejecutar_proceso(output_dir, template_file):
 
             # Leer los datos de la base de datos PostgreSQL en un DataFrame de pandas
             df_consulta = pd.read_sql_query(consulta_sql, engine)
-            
+
             # Procesar el campo_2
             if nombre_campo == "campo_2":
-                # Convertir los valores enteros a cadenas antes de concatenarlos
                 expediente = str(row["exp"]) + "." + str(row["control"]) + "/" + str(row["anio"])
                 texto_agregar += expediente
                 initial_col, dest_row = column_index_from_string(celda_destino[0]), int(celda_destino[1:])
@@ -86,25 +85,24 @@ def ejecutar_proceso(output_dir, template_file):
             # Procesar el campo_3
             elif nombre_campo == "campo_3":
                 # Obtener la fecha de proyecto desde el DataFrame
-                fecha_proyecto = df_consulta["fecha_proyecto"].iloc[0]
-                
+                fecha_proyecto = row['fecha_proyecto']
+
                 # Verificar si la fecha de proyecto tiene valor
-                if not pd.isnull(fecha_proyecto):
+                if pd.notnull(fecha_proyecto) and fecha_proyecto != "":
+                    # Convertir la fecha a cadena si es necesario
+                    fecha_proyecto_str = str(fecha_proyecto)
+
                     # Activar el checkbox en la celda G20
-                    ws['G20'].value = True
+                    ws['G20'].value = "x"
                     
                     # Escribir la fecha en la celda H21
-                    ws['H21'].value = f"{texto_agregar}{fecha_proyecto}"
+                    ws['H21'].value = f"{texto_agregar}{fecha_proyecto_str}"
+           
             
             # Procesar otros campos
             else:
-                # Obtener el valor del campo desde el DataFrame
-                valor_campo = df_consulta[detalles["campo"]].iloc[0]
-                
-                # Obtener las coordenadas de la celda de destino
+                valor_campo = row[detalles["campo"]]
                 dest_col, dest_row = column_index_from_string(celda_destino[0]), int(celda_destino[1:])
-                
-                # Escribir el texto y el valor en la celda de destino
                 ws.cell(row=dest_row, column=dest_col, value=texto_agregar + str(valor_campo))
 
         # Guardar el libro de Excel

@@ -2,7 +2,7 @@ import pandas as pd
 import io
 
 # Definir el nombre del archivo CSV
-archivo_csv = "modelo6/origen/ficheros/sauce/33_217210_24.csv"
+archivo_csv = "modelo6/origen/ficheros/sauce/33_217210_24.CSV"
 
 # Diccionario para almacenar las líneas de cada sección
 secciones = {"FINCAS": [], "EXPEDIENTE": [], "CONSTRUCCIONES":[], "UNIDADES CONSTRUCTIVAS":[]}
@@ -33,8 +33,8 @@ with open(archivo_csv, 'r') as file:
             seccion_actual = "UNIDADES CONSTRUCTIVAS"
             continue
         
-        # Almacenar las líneas en la sección actual si no está vacía
-        if seccion_actual in secciones and line.strip() != "":
+        # Almacenar las líneas en la sección actual
+        if seccion_actual in secciones:
             secciones[seccion_actual].append(line.strip())
 
 # Extraer datos de CONSTRUCCIONES
@@ -43,6 +43,7 @@ for construccion in secciones["CONSTRUCCIONES"]:
     campos_construccion = construccion.split(";")
     cargo = campos_construccion[29]
     orden = campos_construccion[11]
+
 
     pcatastral1 = campos_construccion[9]
     pcatastral2 = campos_construccion[10]
@@ -58,16 +59,25 @@ for construccion in secciones["CONSTRUCCIONES"]:
     aa_antiguedad = campos_construccion[23]
     aa_reforma = campos_construccion[22]
 
-    # Obtener el coeficiente de conservación de UNIDADES CONSTRUCTIVAS
-    coef_conservacion = "N/A"
-    for unidad in secciones["UNIDADES CONSTRUCTIVAS"]:
-        campos_unidad = unidad.split(";") #asigno si coincide refCat y unidad constructiva
-        if pcatastral1 == campos_unidad[2] and pcatastral2 == campos_unidad[3] and unidad_const_dest == campos_unidad[4]:
-            coef_conservacion = campos_unidad[16]
-            break
+    
+    
+    construcciones_data.append([cargo, orden, escalera, planta, puerta, tipologia,categ_pred, destino, superficie_total, unidad_const_dest, aa_antiguedad, aa_reforma])
 
-    construcciones_data.append([cargo, orden, escalera, planta, puerta, tipologia, categ_pred, destino, superficie_total, unidad_const_dest, coef_conservacion, aa_antiguedad, aa_reforma])
-
+# Extraer datos de UNIDADES CONSTRUCTIVAS
+unidades_constructivas_data = []
+for unidad in secciones["UNIDADES CONSTRUCTIVAS"]:
+    campos_unidad = unidad.split(";")
+    pcatastral1 = campos_unidad[2]
+    pcatastral2 = campos_unidad[3]
+    unidad_const = campos_unidad[4]
+    coef_conservacion = campos_unidad[16]
+    unidades_constructivas_data.append([unidad_const, coef_conservacion, pcatastral1, pcatastral2])
+print(construcciones_data)
+print(unidades_constructivas_data)
 # Imprimir los resultados combinados
+print("CARGO\tORDEN\tESCALERA\tPLANTA\tPUERTA\tTIPOLOGIA\tCATEG_PRED\tDESTINO\tSUPERFICIE_TOTAL\tUNIDAD_CONST\tCOEF_CONSERVACION\tAA_ANTIGUEDAD\tAA_REFORMA")
 for construccion in construcciones_data:
-    print("\t".join(construccion))
+    for unidad in unidades_constructivas_data:
+        if construccion[-2:] == unidad[-2:]:
+            resultado = construccion[:-2] + unidad[:-2]
+            print("\t".join(resultado))

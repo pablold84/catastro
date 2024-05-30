@@ -6,6 +6,8 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import logging
 
+#Script que recorre un directorio padre, en busca de ficheros excel, jpg, png, insertando los últimos dentro de la hoja CROQUIS del excel.
+
 # Configurar logging
 logging.basicConfig(filename='discrepancias.log', level=logging.INFO, 
                     format='%(asctime)s - %(levelname)s - %(message)s')

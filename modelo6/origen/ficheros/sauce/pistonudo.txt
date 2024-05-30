@@ -2,7 +2,7 @@ import pandas as pd
 import io
 
 # Definir el nombre del archivo CSV
-archivo_csv = "modelo6/origen/ficheros/sauce/33_217210_24.csv"
+archivo_csv = "modelo6/origen/ficheros/sauce/33_217210_24.CSV"
 
 # Diccionario para almacenar las líneas de cada sección
 secciones = {"FINCAS": [], "EXPEDIENTE": [], "CONSTRUCCIONES":[], "UNIDADES CONSTRUCTIVAS":[]}
@@ -33,8 +33,8 @@ with open(archivo_csv, 'r') as file:
             seccion_actual = "UNIDADES CONSTRUCTIVAS"
             continue
         
-        # Almacenar las líneas en la sección actual si no está vacía
-        if seccion_actual in secciones and line.strip() != "":
+        # Almacenar las líneas en la sección actual
+        if seccion_actual in secciones:
             secciones[seccion_actual].append(line.strip())
 
 # Extraer datos de CONSTRUCCIONES

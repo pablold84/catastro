@@ -25,7 +25,7 @@ def ejecutar_proceso(output_dir, template_file, schema):
     engine = obtener_conexion()
     
     # Obtener todos los registros de la tabla DATOS_INICIALES filtrando por REFCAT
-    refcat_value = '001410500UN59E'  # Valor específico de REFCAT
+    refcat_value = '001501800UN59G'  # Valor específico de REFCAT
     df_datos_iniciales = pd.read_sql_query(f'SELECT * FROM "{schema}"."DATOS_INICIALES" WHERE "REFCAT" = %s', engine, params=(refcat_value,))
     
     # Imprimir los nombres de las columnas para verificar

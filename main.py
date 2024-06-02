@@ -1,12 +1,20 @@
 import os
 import shutil
-from openpyxl import load_workbook
-from openpyxl.styles import Font, PatternFill
-from openpyxl.utils import column_index_from_string
 import pandas as pd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect
+import openpyxl
+from openpyxl.drawing.image import Image as OpenpyxlImage
+from openpyxl.styles import Font
+from openpyxl.utils import column_index_from_string
+from PIL import Image as PILImage
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, ttk
+import logging
+
+
+# Configurar logging
+logging.basicConfig(filename='registro.log', level=logging.INFO, 
+                    format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Función para configurar la conexión a la base de datos
 def obtener_conexion():
@@ -20,20 +28,61 @@ def obtener_conexion():
     conn_str = f"postgresql+psycopg2://{conn_params['user']}:{conn_params['password']}@{conn_params['host']}:{conn_params['port']}/{conn_params['dbname']}"
     return create_engine(conn_str)
 
-# Función para escribir datos iniciales en el Excel
-def escribir_datos_iniciales(ws, schema, refcat_value):
-    # Conectar a la base de datos
+# Función para listar las tablas en el base de datos bajo un esquema dado
+def listar_tablas(esquema):
     engine = obtener_conexion()
+    inspector = inspect(engine)
+    tablas = inspector.get_table_names(schema=esquema)
+    return tablas
 
-    # Obtener todos los registros de la tabla DATOS_INICIALES filtrando por REFCAT
-    df_datos_iniciales = pd.read_sql_query(f'SELECT * FROM "{schema}"."DATOS_INICIALES" WHERE "REFCAT" = %s', engine, params=(refcat_value,))
+# Función para obtener REFCAT de la base de datos
+def obtener_refcat(esquema):
+    engine = obtener_conexion()
+    tablas = listar_tablas(esquema)
+    logging.info(f"Tablas disponibles en el esquema '{esquema}': {tablas}")
+    
+    # Asegúrate de que la tabla 'segipsa_placo' está en la lista de tablas
+    if 'segipsa_placo' not in tablas:
+        raise ValueError(f"La tabla 'segipsa_placo' no existe en el esquema '{esquema}'. Tablas disponibles: " + ", ".join(tablas))
+    
+    # Completa la consulta con esquema.tabla
+    query = f'SELECT "REFCAT" FROM "{esquema}"."segipsa_placo" WHERE "accion" != \'CIER\''
+    logging.info("Consulta ejecutada: " + query)
+    df = pd.read_sql_query(query, engine)
+    logging.info(f"Consulta exitosa. Resultado: {df}")
+    return df['REFCAT'].tolist()
 
-    # Verificar si se encontraron registros
-    if df_datos_iniciales.empty:
-        messagebox.showerror("Error", f"No se encontraron registros con REFCAT = {refcat_value}")
-        return False
+# Función para redimensionar y guardar las imágenes
+def resize_image(image_path, output_path, width, height):
+    with PILImage.open(image_path) as img:
+        resized_img = img.resize((width, height), PILImage.Resampling.LANCZOS)
+        resized_img.save(output_path)
 
-    # Campos y celdas de destino para DATOS_INICIALES
+# Función para añadir imágenes al archivo Excel
+def add_images_to_excel(ws, png_path, jpg_path, desired_width, desired_height):
+    resized_png_path = os.path.join(os.path.dirname(png_path), 'resized_' + os.path.basename(png_path))
+    resized_jpg_path = os.path.join(os.path.dirname(jpg_path), 'resized_' + os.path.basename(jpg_path))
+    
+    if os.path.exists(png_path):
+        resize_image(png_path, resized_png_path, desired_width, desired_height)
+        img_png = OpenpyxlImage(resized_png_path)
+        img_png.anchor = 'C5'
+        ws.add_image(img_png)
+    else:
+        logging.warning(f"No se encontró la imagen PNG en la ruta: {png_path}")
+    
+    if os.path.exists(jpg_path):
+        resize_image(jpg_path, resized_jpg_path, desired_width, desired_height)
+        img_jpg = OpenpyxlImage(resized_jpg_path)
+        img_jpg.anchor = 'R5'
+        ws.add_image(img_jpg)
+    else:
+        logging.warning(f"No se encontró la imagen JPG en la ruta: {jpg_path}")
+
+# Función para escribir datos iniciales en el Excel
+def escribir_datos_iniciales(ws, esquema, refcat_list):
+    engine = obtener_conexion()
+    
     mapeo_campos = {
         "CARGO": "A",
         "ORD_CONS": "B",
@@ -49,7 +98,23 @@ def escribir_datos_iniciales(ws, schema, refcat_value):
         "ANY_ANTIG": "L"
     }
 
-    # Escribir los datos de DATOS_INICIALES en el Excel
+    start_row = 5
+    for idx, refcat_value in enumerate(refcat_list):
+        query = f'SELECT * FROM "{esquema}"."DATOS_INICIALES" WHERE "REFCAT" = %s'
+        df_datos_iniciales = pd.read_sql_query(query, engine, params=(refcat_value,))
+
+        if df_datos_iniciales.empty:
+            logging.error(f"No se encontraron registros con REFCAT = {refcat_value}")
+            continue
+
+        for idx, row in df_datos_iniciales.iterrows():
+            for campo, col in mapeo_campos.items():
+                if campo in row:
+                    valor_campo = row[campo]
+                    dest_col = column_index_from_string(col)
+                    dest_row = start_row + idx
+                    ws.cell(row=dest_row, column=dest_col, value=valor_campo)
+
     start_row = 5
     for idx, row in df_datos_iniciales.iterrows():
         for campo, col in mapeo_campos.items():
@@ -62,79 +127,46 @@ def escribir_datos_iniciales(ws, schema, refcat_value):
     return True
 
 # Función para escribir datos de SAUCE en el Excel
-def escribir_datos_sauce(ws):
-    # Definir el nombre del archivo CSV
-    archivo_csv = "modelo6/origen/ficheros/sauce/33_217210_24.csv"
-
-    # Diccionario para almacenar las líneas de cada sección
+def escribir_datos_sauce(ws, archivo_csv):
     secciones = {"FINCAS": [], "EXPEDIENTE": [], "CONSTRUCCIONES": [], "UNIDADES CONSTRUCTIVAS": []}
-
-    # Bandera para indicar la sección actual
     seccion_actual = None
 
-    # Leer el archivo CSV
     with open(archivo_csv, 'r') as file:
         for line in file:
-            # Verificar si la línea está vacía (contiene solo el retorno de carro)
             if line.strip() == "":
-                # Si la línea está vacía, cambiar a la siguiente sección
                 seccion_actual = None
                 continue
 
-            # Detectar la sección actual
             if line.startswith("EXPEDIENTE"):
                 seccion_actual = "EXPEDIENTE"
-                continue
             elif line.startswith("FINCAS"):
                 seccion_actual = "FINCAS"
-                continue
             elif line.startswith("CONSTRUCCIONES"):
                 seccion_actual = "CONSTRUCCIONES"
-                continue
             elif line.startswith("UNIDADES CONSTRUCTIVAS"):
                 seccion_actual = "UNIDADES CONSTRUCTIVAS"
-                continue
-
-            # Almacenar las líneas en la sección actual si no está vacía
-            if seccion_actual in secciones and line.strip() != "":
+            elif seccion_actual:
                 secciones[seccion_actual].append(line.strip())
 
-    # Extraer datos de CONSTRUCCIONES
     construcciones_data = []
     for construccion in secciones["CONSTRUCCIONES"]:
         campos_construccion = construccion.split(";")
-        cargo = campos_construccion[29]
-        orden = campos_construccion[11]
+        construcciones_data.append([
+            campos_construccion[29], campos_construccion[11], campos_construccion[13], 
+            campos_construccion[14], campos_construccion[15], campos_construccion[19],
+            campos_construccion[20], campos_construccion[18], campos_construccion[26],
+            campos_construccion[16], "N/A", campos_construccion[23],
+        campos_construccion[22]
+        ])
 
-        pcatastral1 = campos_construccion[9]
-        pcatastral2 = campos_construccion[10]
-
-        escalera = campos_construccion[13]
-        planta = campos_construccion[14]
-        puerta = campos_construccion[15]
-        tipologia = campos_construccion[19]
-        categ_pred = campos_construccion[20]
-        destino = campos_construccion[18]
-        superficie_total = campos_construccion[26]
-        unidad_const_dest = campos_construccion[16]
-        aa_antiguedad = campos_construccion[23]
-        aa_reforma = campos_construccion[22]
-
-        # Obtener el coeficiente de conservación de UNIDADES CONSTRUCTIVAS
-        coef_conservacion = "N/A"
-        for unidad in secciones["UNIDADES CONSTRUCTIVAS"]:
-            campos_unidad = unidad.split(";")
-            if pcatastral1 == campos_unidad[2] and pcatastral2 == campos_unidad[3] and unidad_const_dest == campos_unidad[4]:
-                coef_conservacion = campos_unidad[16]
+    for unidad in secciones["UNIDADES CONSTRUCTIVAS"]:
+        campos_unidad = unidad.split(";")
+        for construccion in construcciones_data:
+            if construccion[9] == campos_unidad[4]:
+                construccion[10] = campos_unidad[16]
                 break
 
-
-        construcciones_data.append([cargo, orden, escalera, planta, puerta, tipologia, categ_pred, destino, superficie_total, unidad_const_dest, coef_conservacion, aa_antiguedad, aa_reforma])
-
-    # Omitir el primer elemento (encabezado) de construcciones_data
     construcciones_data = construcciones_data[1:]
-
-    # Definir mapeo_campos_sauce
     mapeo_campos_sauce = {
         "CARGO": "O",
         "ORDEN": "P",
@@ -151,122 +183,147 @@ def escribir_datos_sauce(ws):
         "AA_REFORMA": "AA"
     }
 
-    # Escribir los datos en el archivo
-    start_row = 5  # Corresponde a la fila 5 en Excel
+    start_row = 5
     for idx, construccion in enumerate(construcciones_data):
         for campo, col in mapeo_campos_sauce.items():
             valor_campo = construccion[list(mapeo_campos_sauce.keys()).index(campo)]
             ws[col + str(start_row + idx)] = valor_campo
 
-   
-
-# Función para seleccionar el directorio de salida
-def seleccionar_directorio():
-    directorio = filedialog.askdirectory()
-    if directorio:
-        entry_output_dir.delete(0, tk.END)
-        entry_output_dir.insert(0, directorio)
-
-# Función para seleccionar el archivo de plantilla
-def seleccionar_archivo():
-    archivo = filedialog.askopenfilename(filetypes=[("Archivos de Excel", "*.xlsx")])
-    if archivo:
-        entry_template_file.delete(0, tk.END)
-        entry_template_file.insert(0, archivo)
-
 # Función para comparar y resaltar diferencias
 def comparar_y_resaltar(ws):
-    # Obtener el rango de celdas a comparar (desde A5 hasta la última fila escrita en los datos iniciales)
     max_row = ws.max_row
-    max_col_iniciales = ws.max_column
-    max_col_sauce = max_col_iniciales + 14  # Ajuste para comenzar desde la columna "O" de SAUCE
+    max_col_iniciales = 12  # Última columna de los datos iniciales
+    max_col_sauce = 14  # Número de columnas en SAUCE
     
     for row in range(5, max_row + 1):
         for col in range(1, max_col_iniciales + 1):
             cell_iniciales = ws.cell(row=row, column=col)
-            cell_sauce = ws.cell(row=row, column=col + 14)  # Ajuste para alinear con la columna "O" de SAUCE
+            cell_sauce = ws.cell(row=row, column=col + max_col_iniciales)
             
-            # Obtener los valores de las celdas como texto
-            valor_celda_iniciales = str(cell_iniciales.value)
-            valor_celda_sauce = str(cell_sauce.value)
-            
-            # Comparar los valores de las celdas
-            if valor_celda_iniciales != valor_celda_sauce:
-                # Resaltar el texto en rojo en la parte de SAUCE
-                cell_sauce.font = Font(color="FF0000")  # Rojo
+            if cell_iniciales.value != cell_sauce.value:
+                cell_sauce.font = Font(color="FF0000")  # Resaltar en rojo
 
+# Función para procesar cada carpeta en el directorio de origen
+def process_folders(window, output_dir, template_file, origin_dir, esquema, progress_label, progress_bar):
+    refcat_list = obtener_refcat(esquema)
+    total_folders = len(refcat_list)
 
-
-
-# Función para ejecutar ambos procesos y guardar el archivo Excel
-def ejecutar_procesos():
-    output_dir = entry_output_dir.get()
-    template_file = entry_template_file.get()
-    schema = entry_schema.get()
-    refcat_value = entry_refcat.get()
-
-    if not output_dir or not template_file or not schema or not refcat_value:
-        messagebox.showerror("Error", "Por favor, complete todos los campos")
-        return
-
-    # Crear el directorio de salida si no existe
-    os.makedirs(output_dir, exist_ok=True)
-
-    # Usar el campo REFCAT como identificador en el nombre del archivo
-    file_name = f"FICHA_RESUMEN_PLACO23_{refcat_value}.xlsx"
-    file_path = os.path.join(output_dir, file_name)
-
-    # Copiar el archivo de plantilla
-    shutil.copyfile(template_file, file_path)
-
-    # Cargar el archivo copiado
-    book = load_workbook(file_path)
-    ws_sauce = book["SAUCE"]
-
-    # Escribir datos iniciales
-    if escribir_datos_iniciales(ws_sauce, schema, refcat_value):
-        # Escribir datos de SAUCE
-        escribir_datos_sauce(ws_sauce)
-        # Comparar y resaltar diferencias
+    for index, refcat_value in enumerate(refcat_list):
+        folder_path = os.path.join(origin_dir, refcat_value)  # Modificado para usar la ruta de origen
+        excel_path = os.path.join(output_dir, f"{refcat_value}_FichaResumen.xlsx")
+        png_path = os.path.join(folder_path, f"{refcat_value}.png")
+        jpg_path = os.path.join(folder_path, f"{refcat_value}.jpg")
+        csv_path = os.path.join(folder_path, f"{refcat_value}.csv")
+        
+        logging.info(f"Refcat value: {refcat_value}")
+        
+        # Actualizar la barra de progreso
+        progress_bar['value'] = (index + 1) / total_folders * 100
+        progress_label.config(text=f"Procesando carpeta {index + 1} de {total_folders}")
+        window.update_idletasks()
+        
+        # Verificar si los archivos PNG, JPG y CSV existen en la carpeta actual
+        if not all(os.path.exists(path) for path in [png_path, jpg_path, csv_path]):
+            logging.warning(f"Archivos faltantes para REFCAT {refcat_value}")
+            missing_files = [path for path in [png_path, jpg_path, csv_path] if not os.path.exists(path)]
+            for missing_file in missing_files:
+                logging.warning(f"El archivo {missing_file} no se encuentra en la carpeta {folder_path}")
+            continue
+        
+        # Verificar si la carpeta de salida existe
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)  # Asegurarse de que la carpeta de salida existe
+            logging.info(f"Carpeta de salida creada en: {output_dir}")
+        
+        # Copiar la plantilla al directorio de salida
+        shutil.copy(template_file, excel_path)
+        logging.info(f"Plantilla copiada a: {excel_path}")
+        
+        # Cargar el libro de trabajo y las hojas necesarias
+        wb = openpyxl.load_workbook(excel_path)
+        ws_iniciales = wb['SAUCE']
+        ws_sauce = wb['SAUCE']
+        ws_croquis = wb['CROQUIS']
+        
+        # Escribir datos iniciales en el libro de trabajo
+        if not escribir_datos_iniciales(ws_iniciales, esquema, refcat_value):
+            continue
+        
+        # Escribir datos de SAUCE en el libro de trabajo
+        escribir_datos_sauce(ws_sauce, csv_path)
+        
+        # Agregar imágenes al libro de trabajo
+        add_images_to_excel(ws_croquis, png_path, jpg_path, 700, 700)
+        
+        # Comparar y resaltar diferencias en los datos de SAUCE
         comparar_y_resaltar(ws_sauce)
-        # Guardar el libro de Excel
-        book.save(file_path)
-        messagebox.showinfo("Éxito", f"Datos escritos exitosamente en el archivo {file_path}")
-    else:
-        # Eliminar el archivo creado si no se encontraron datos iniciales
-        os.remove(file_path)
+        
+        # Guardar el libro de trabajo modificado
+        wb.save(excel_path)
+        logging.info(f"Libro de trabajo guardado en: {excel_path}")
 
-# Crear la ventana principal
-root = tk.Tk()
-root.title("Generador de Modelo 6")
 
-# Crear y colocar los elementos de la interfaz gráfica
-label_output_dir = tk.Label(root, text="Directorio de Salida:")
-label_output_dir.grid(row=0, column=0, padx=10, pady=5, sticky=tk.W)
-entry_output_dir = tk.Entry(root, width=50)
-entry_output_dir.grid(row=0, column=1, padx=10, pady=5)
-button_output_dir = tk.Button(root, text="Seleccionar", command=seleccionar_directorio)
-button_output_dir.grid(row=0, column=2, padx=10, pady=5)
+# Función para abrir el explorador de archivos
+def seleccionar_directorio(titulo):
+    root = tk.Tk()
+    root.withdraw()
+    directorio = filedialog.askdirectory(title=titulo)
+    return directorio
 
-label_template_file = tk.Label(root, text="Archivo de Plantilla:")
-label_template_file.grid(row=1, column=0, padx=10, pady=5, sticky=tk.W)
-entry_template_file = tk.Entry(root, width=50)
-entry_template_file.grid(row=1, column=1, padx=10, pady=5)
-button_template_file = tk.Button(root, text="Seleccionar", command=seleccionar_archivo)
-button_template_file.grid(row=1, column=2, padx=10, pady=5)
+def seleccionar_archivo(titulo):
+    root = tk.Tk()
+    root.withdraw()
+    archivo = filedialog.askopenfilename(title=titulo, filetypes=[('Excel Files', '*.xlsx')])
+    return archivo
 
-label_schema = tk.Label(root, text="Esquema:")
-label_schema.grid(row=2, column=0, padx=10, pady=5, sticky=tk.W)
-entry_schema = tk.Entry(root, width=50)
-entry_schema.grid(row=2, column=1, padx=10, pady=5)
+# Función para la interfaz gráfica
+def interfaz_grafica():
+    window = tk.Tk()
+    window.title("Procesar Archivos Masivamente")
 
-label_refcat = tk.Label(root, text="REFCAT:")
-label_refcat.grid(row=3, column=0, padx=10, pady=5, sticky=tk.W)
-entry_refcat = tk.Entry(root, width=50)
-entry_refcat.grid(row=3, column=1, padx=10, pady=5)
+    ttk.Label(window, text="Esquema:").grid(column=0, row=0)
+    schema_entry = ttk.Entry(window, width=50)
+    schema_entry.grid(column=1, row=0)
+    
+    ttk.Label(window, text="Directorio de Salida:").grid(column=0, row=1)
+    output_dir_entry = ttk.Entry(window, width=50)
+    output_dir_entry.grid(column=1, row=1)
+    ttk.Button(window, text="Seleccionar", command=lambda: output_dir_entry.insert(0, seleccionar_directorio("Seleccionar Directorio de Salida"))).grid(column=2, row=1)
+    
+    ttk.Label(window, text="Archivo de Plantilla:").grid(column=0, row=2)
+    template_file_entry = ttk.Entry(window, width=50)
+    template_file_entry.grid(column=1, row=2)
+    ttk.Button(window, text="Seleccionar", command=lambda: template_file_entry.insert(0, seleccionar_archivo("Seleccionar Archivo de Plantilla"))).grid(column=2, row=2)
+    
+    ttk.Label(window, text="Directorio de Origen de Datos:").grid(column=0, row=3)
+    origin_dir_entry = ttk.Entry(window, width=50)
+    origin_dir_entry.grid(column=1, row=3)
+    ttk.Button(window, text="Seleccionar", command=lambda: origin_dir_entry.insert(0, seleccionar_directorio("Seleccionar Directorio de Origen de Datos"))).grid(column=2, row=3)
+    
+    progress_label = ttk.Label(window, text="")
+    progress_label.grid(column=0, row=4, columnspan=3)
 
-button_ejecutar = tk.Button(root, text="Ejecutar", command=ejecutar_procesos)
-button_ejecutar.grid(row=4, column=1, padx=10, pady=20)
+    progress_bar = ttk.Progressbar(window, orient=tk.HORIZONTAL, length=300, mode='determinate')
+    progress_bar.grid(column=0, row=5, columnspan=3)
+        
+    def ejecutar_proceso():
+        esquema = schema_entry.get()
+        output_dir = output_dir_entry.get()
+        template_file = template_file_entry.get()
+        origin_dir = origin_dir_entry.get()
+        
+        if not all([esquema, output_dir, template_file, origin_dir]):
+            messagebox.showerror("Error", "Todos los campos son obligatorios.")
+            return
+        
+        process_folders(window, output_dir, template_file, origin_dir, esquema, progress_label, progress_bar)
+        messagebox.showinfo("Éxito", "Proceso completado.")
 
-# Ejecutar la ventana principal
-root.mainloop()
+    
+    ttk.Button(window, text="Ejecutar", command=ejecutar_proceso).grid(column=0, row=6, columnspan=3)
+    
+    window.mainloop()
+
+# Ejecutar la interfaz gráfica
+if __name__ == "__main__":
+    interfaz_grafica()

@@ -4,9 +4,10 @@ import pandas as pd
 from sqlalchemy import create_engine, inspect
 import openpyxl
 from openpyxl.drawing.image import Image as OpenpyxlImage
-from openpyxl.styles import Font
+from openpyxl.styles import Font, Border, Side, Alignment
 from openpyxl.utils import column_index_from_string
 from PIL import Image as PILImage
+from openpyxl import load_workbook
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import logging
@@ -14,6 +15,12 @@ import logging
 # Configurar logging
 logging.basicConfig(filename='registro.log', level=logging.INFO, 
                     format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Definir el estilo del borde normal
+normal_border = Border(left=Side(style='thin'), 
+                        right=Side(style='thin'), 
+                        top=Side(style='thin'), 
+                        bottom=Side(style='thin'))
 
 # Función para configurar la conexión a la base de datos
 def obtener_conexion():
@@ -65,7 +72,7 @@ def add_images_to_excel(ws, png_path, jpg_path, desired_width, desired_height):
     if os.path.exists(png_path):
         resize_image(png_path, resized_png_path, desired_width, desired_height)
         img_png = OpenpyxlImage(resized_png_path)
-        img_png.anchor = 'C5'
+        img_png.anchor = 'B36'
         ws.add_image(img_png)
     else:
         logging.warning(f"No se encontró la imagen PNG en la ruta: {png_path}")
@@ -73,7 +80,7 @@ def add_images_to_excel(ws, png_path, jpg_path, desired_width, desired_height):
     if os.path.exists(jpg_path):
         resize_image(jpg_path, resized_jpg_path, desired_width, desired_height)
         img_jpg = OpenpyxlImage(resized_jpg_path)
-        img_jpg.anchor = 'R5'
+        img_jpg.anchor = 'P37'
         ws.add_image(img_jpg)
     else:
         logging.warning(f"No se encontró la imagen JPG en la ruta: {jpg_path}")
@@ -97,11 +104,9 @@ def escribir_datos_iniciales(ws, esquema, refcat_value):
         "ANY_ANTIG": "L"
     }
 
-    start_row = 5
+    start_row = 86
     query = f'SELECT * FROM "{esquema}"."DATOS_INICIALES" WHERE "REFCAT" = %(refcat)s'
     df_datos_iniciales = pd.read_sql_query(query, engine, params={'refcat': refcat_value})
-    print("imprimo valor refcat_value ", refcat_value)
-    print("imprimo valor consulta ", df_datos_iniciales)
 
     if df_datos_iniciales.empty:
         logging.error(f"No se encontraron registros con REFCAT = {refcat_value}")
@@ -114,6 +119,11 @@ def escribir_datos_iniciales(ws, esquema, refcat_value):
                 dest_col = column_index_from_string(col)
                 dest_row = start_row + idx
                 ws.cell(row=dest_row, column=dest_col, value=valor_campo)
+                # Copiar formato de la fila anterior
+
+                for col in range(1, ws.max_column + 1):
+                    ws.cell(row=dest_row, column=col)._style = ws.cell(row=start_row, column=col)._style
+                
 
     return True
 
@@ -143,21 +153,31 @@ def escribir_datos_sauce(ws, archivo_csv):
     for construccion in secciones["CONSTRUCCIONES"]:
         campos_construccion = construccion.split(";")
         construcciones_data.append([
-            campos_construccion[29], campos_construccion[11], campos_construccion[13], 
-            campos_construccion[14], campos_construccion[15], campos_construccion[19],
-            campos_construccion[20], campos_construccion[18], campos_construccion[26],
-            campos_construccion[16], "N/A", campos_construccion[23],
-        campos_construccion[22]
+            campos_construccion[29],  # Valor para "CARGO"
+            campos_construccion[11],  # Valor para "ORDEN"
+            campos_construccion[13],  # Valor para "ESCALERA"
+            campos_construccion[14],  # Valor para "PLANTA"
+            campos_construccion[15],  # Valor para "PUERTA"
+            campos_construccion[19],  # Valor para "TIPOLOGIA"
+            campos_construccion[20],  # Valor para "CATEG_PRED"
+            campos_construccion[18],  # Valor para "DESTINO"
+            campos_construccion[26],  # Valor para "SUPERFICIE_TOTAL"
+            campos_construccion[16],  # Valor para "UNIDAD_CONST"
+            "N/A",                    # Marcador de posición para "COEF_CONSERVACION"
+            campos_construccion[23],  # Valor para "AA_ANTIGUEDAD"
+            campos_construccion[22]   # Valor para "AA_REFORMA"
         ])
 
     for unidad in secciones["UNIDADES CONSTRUCTIVAS"]:
         campos_unidad = unidad.split(";")
         for construccion in construcciones_data:
-            if construccion[9] == campos_unidad[4]:
-                construccion[10] = campos_unidad[16]
-                break
+            if construccion[9] == campos_unidad[4]:  # Verificar si "UNIDAD_CONST" coincide
+                construccion[10] = campos_unidad[16]  # Actualizar "COEF_CONSERVACION"
+                # No usar 'break' para seguir buscando más coincidencias
 
+    # Construcciones_data tiene todas las filas de datos que necesitamos
     construcciones_data = construcciones_data[1:]
+    
     mapeo_campos_sauce = {
         "CARGO": "O",
         "ORDEN": "P",
@@ -174,32 +194,234 @@ def escribir_datos_sauce(ws, archivo_csv):
         "AA_REFORMA": "AA"
     }
 
-    start_row = 5
+    start_row = 86
     for idx, construccion in enumerate(construcciones_data):
         for campo, col in mapeo_campos_sauce.items():
             valor_campo = construccion[list(mapeo_campos_sauce.keys()).index(campo)]
             ws[col + str(start_row + idx)] = valor_campo
+            # Copiar formato de la fila anterior
+            
+            for col_num in range(1, ws.max_column + 1):
+                ws.cell(row=start_row + idx, column=col_num)._style = ws.cell(row=start_row, column=col_num)._style
+
+            
 
 # Función para comparar y resaltar diferencias
-    # Obtener el rango de celdas a comparar (desde A5 hasta la última fila escrita en los datos iniciales)
+from openpyxl.styles import Border
+
+
+# Función para comparar y resaltar diferencias
 def comparar_y_resaltar(ws):
     max_row = ws.max_row
-    max_col_iniciales = ws.max_column
-    max_col_sauce = max_col_iniciales + 14  # Ajuste para comenzar desde la columna "O" de SAUCE
+    col_iniciales_start = 1  # Columna A
+    col_iniciales_end = 13  # Columna M
+    col_sauce_start = 15  # Columna O (14 columnas después de A)
     
-    for row in range(5, max_row + 1):
-        for col in range(1, max_col_iniciales + 1):
+    for row in range(86, max_row + 1):
+        for col in range(col_iniciales_start, col_iniciales_end + 1):
             cell_iniciales = ws.cell(row=row, column=col)
-            cell_sauce = ws.cell(row=row, column=col + 14)  # Ajuste para alinear con la columna "O" de SAUCE
+            cell_sauce = ws.cell(row=row, column=col + col_sauce_start - col_iniciales_start)
             
-            # Obtener los valores de las celdas como texto
-            valor_celda_iniciales = str(cell_iniciales.value)
-            valor_celda_sauce = str(cell_sauce.value)
+            # Obtener los valores de las celdas como texto y limpiar espacios
+            valor_celda_iniciales = str(cell_iniciales.value).strip() if cell_iniciales.value is not None else ""
+            valor_celda_sauce = str(cell_sauce.value).strip() if cell_sauce.value is not None else ""
             
             # Comparar los valores de las celdas
             if valor_celda_iniciales != valor_celda_sauce:
                 # Resaltar el texto en rojo en la parte de SAUCE
                 cell_sauce.font = Font(color="FF0000")  # Rojo
+
+    # Aplicar borde normal a todas las celdas en la parte de Situación Inicial
+    for row in ws.iter_rows(min_row=86, max_row=max_row, min_col=col_sauce_start, max_col=ws.max_column):
+        for cell in row:
+            cell.border = normal_border
+
+# Aplicar borde normal a todas las celdas en la parte de Situación Inicial
+    for row in ws.iter_rows(min_row=86, max_row=max_row, min_col=col_iniciales_start, max_col=col_iniciales_end):
+        for cell in row:
+            cell.border = normal_border
+    
+        # Definir el estilo de alineación centrada
+    center_alignment = Alignment(horizontal='center', vertical='center')
+# Aplicar el estilo de alineación centrada a todas las celdas
+    for row in ws.iter_rows():
+        for cell in row:
+            cell.alignment = center_alignment
+
+
+    # Aplicar el borde superior a todas las celdas en la fila 3 de la columna A a M
+    for col in range(col_iniciales_start, col_iniciales_end + 1):
+        cell = ws.cell(row=3, column=col)
+        cell.border = Border(top=Side(style='thin'))
+
+        # Definir el estilo de borde para la celda M3
+    border_style_M3 = Border(
+        top=Side(style='thin'),
+        right=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+
+    # Aplicar el estilo de borde a la celda M3
+    cell_M3 = ws.cell(row=3, column=col_iniciales_end)
+    cell_M3.border = border_style_M3
+
+        # Definir el estilo de borde para la celda B3
+    border_style_B3 = Border(
+        top=Side(style='thin'),
+        left=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+
+    # Aplicar el estilo de borde a la celda B3
+    cell_B3 = ws.cell(row=3, column=col_iniciales_start)
+    cell_B3.border = border_style_B3
+
+
+# Función para definir el estilo dashed en todas las filas hasta la columna AA
+"""
+def definir_estilo_dashed(ws):
+    #double_side = Side(border_style="medium", color="000000")
+    #dashed_side = Side(border_style="dashed", color="FF0000")
+   
+    # Aplicar a todas las celdas
+    for row in ws.iter_rows():
+        for cell in row:
+            border = Border(
+                top=cell.border.top,
+                left=cell.border.left,
+                right=cell.border.right,
+                bottom=cell.border.bottom
+            )
+            cell.border = border
+    
+    # Aplicar borde derecho grueso a la columna M
+    for cell in ws['M']:
+        cell.border = Border(
+            right=cell.border.right
+        )
+
+    # Aplicar a la columna N (borde izquierdo y derecho)
+    for cell in ws['N']:
+        cell.border = Border(
+            left=cell.border.left
+        )
+
+    # Aplicar a todas las celdas desde la columna O en adelante
+    
+    for col in ws.iter_cols(min_col=15, max_col=ws.max_column):
+        for cell in col:
+            cell.border = Border(
+                top=cell.border.top,
+                left=cell.border.left,
+                right=cell.border.right,
+                bottom=cell.border.bottom
+            )
+  """
+
+# Función para obtener el valor de "observaciones" desde la base de datos
+def escribir_ficha_resumen(ws, esquema, refcat_value):
+    engine = obtener_conexion()
+    query = f"""
+        SELECT exp, control, anio, del, mun, nom_mun, fecha_proyecto, fecha_licencia, fecha_act_urbanist, fecha_cert_finob, "REFCAT", sigla_via, situacion, npoli, dupli, cp, cod_incidencia, fecha_inf_ayunt, fecha_otras, cod_incidencia_adicional, tr_digi_grab, tr_campo, fecha_alt, justif_fecha_alteracion, observaciones
+        FROM cabrales.segipsa_placo
+        WHERE "REFCAT" = '{refcat_value}'
+    """
+    df = pd.read_sql_query(query, engine)
+
+    if df.empty:
+        logging.warning(f"No se encontró el valor de 'observaciones' para REFCAT {refcat_value}")
+        return ""
+    
+
+    # Iterar sobre cada fila del DataFrame
+    for _, row in df.iterrows():
+        # Nombre del archivo usando el campo 'exp'
+        exp_value = row['exp']
+        file_name = f"FICHA_RESUMEN_PLACO23_{exp_value}.xlsx"
+        file_path = os.path.join(esquema, file_name)
+
+    
+
+        # Procesar el campo_1 (agregar del y mun)
+        del_value = str(row["del"]).zfill(2)
+        mun_value = str(row["mun"]).zfill(3)
+        nommun_value = row["nom_mun"]
+        texto_agregar_1 = f"GERENCIA-MUNICIPIO: {del_value}{mun_value} {nommun_value}"
+        ws["A7"].value = texto_agregar_1
+
+        # Procesar el campo_2
+        expediente = f"{row['exp']}.{row['control']}/{row['anio']}"
+        texto_agregar_2 = f"Nº EXPEDIENTE: {expediente}"
+        ws["P7"].value = texto_agregar_2
+
+        # Procesar las fechas en los campos correspondientes
+        def procesar_fecha(celda, fecha, celda_fecha):
+            if pd.notnull(fecha) and fecha != "":
+                fecha_str = str(fecha)
+                ws[celda].value = "x"
+                ws[celda_fecha].value = f"FECHA: {fecha_str}"
+            else:
+                ws[celda_fecha].value = f"FECHA:"
+
+        procesar_fecha('G20', row['fecha_proyecto'], 'H21')
+        procesar_fecha('O20', row['fecha_licencia'], 'P21')
+        procesar_fecha('V20', row['fecha_act_urbanist'], 'W21')
+        procesar_fecha('G22', row['fecha_cert_finob'], 'H23')
+        procesar_fecha('O22', row['fecha_inf_ayunt'], 'P23')
+        procesar_fecha('V22', row['fecha_otras'], 'W23')
+
+        # Procesar el campo_4 (REFCAT)
+        REFCAT_value = row["REFCAT"]
+        texto_agregar_4 = f"REFERENCIA CATASTRAL: {REFCAT_value}"
+        ws["A9"].value = texto_agregar_4
+
+        # Procesar el campo L7 (DIRECCIÓN)
+        direccion_texto = f"DIRECCIÓN: {row['sigla_via']} {row['situacion']} {row['npoli']}{row['dupli']} {row['cp']}"
+        ws["P9"].value = direccion_texto
+
+        # Procesar el campo_5 (cod_incidencia y cod_incidencia_adicional)
+        cod_incidencia = row["cod_incidencia"]
+        cod_incidencia_adicional = row["cod_incidencia_adicional"]
+        if pd.notnull(cod_incidencia_adicional) and cod_incidencia_adicional != "":
+            texto_agregar_5 = f"{cod_incidencia}/{cod_incidencia_adicional}"
+        else:
+            texto_agregar_5 = str(cod_incidencia)
+        ws['G11'].value = texto_agregar_5
+
+        # Obtener el valor del campo Tr_digi_grab de tus datos
+        tr_digi_grab_value = row["tr_digi_grab"]
+        # Establecer el valor del campo en la celda K13
+        ws['K13'] = tr_digi_grab_value
+        # Establecer el estilo de fuente en cursiva para la celda K13
+        ws['K13'].font = Font(italic=True)
+
+        # Obtener el valor del campo Tr_campo de tus datos
+        tr_campo_value = row["tr_campo"]
+        # Establecer el valor del campo en la celda K16
+        ws['K16'] = tr_campo_value
+        # Establecer el estilo de fuente en cursiva para la celda K16
+        ws['K16'].font = Font(italic=True)
+
+        # Procesar el campo fecha_alt en la celda G25
+        fecha_alt_value = row["fecha_alt"]
+        texto_agregar_fecha_alt = f"FECHA: {fecha_alt_value}"
+        # Establecer el estilo de la fuente en negrita para la celda G25
+        ws['G25'].font = Font(bold=True)
+        # Asignar el valor a la celda G25
+        ws['G25'].value = texto_agregar_fecha_alt
+
+        # Procesar el campo justif_fecha_alteracion en la celda G26
+        justif_fecha_alteracion_value = row["justif_fecha_alteracion"]
+        texto_agregar_justif_fecha_alteracion = f"MOTIVACIÓN: {justif_fecha_alteracion_value}"
+        # Asignar el valor a la celda G26
+        ws['G26'].value = texto_agregar_justif_fecha_alteracion
+
+        # Procesar el campo de observaciones en la celda G29
+        observaciones_value = row["observaciones"]
+        # Asignar el valor a la celda G29
+        ws['G29'].value = observaciones_value
+
+
 
 # Función para procesar cada carpeta en el directorio de origen
 def process_folders(window, output_dir, template_file, origin_dir, esquema, progress_label, progress_bar):
@@ -240,9 +462,10 @@ def process_folders(window, output_dir, template_file, origin_dir, esquema, prog
         
         # Cargar el libro de trabajo y las hojas necesarias
         wb = openpyxl.load_workbook(excel_path)
-        ws_iniciales = wb['SAUCE']
-        ws_sauce = wb['SAUCE']
-        ws_croquis = wb['CROQUIS']
+        ws_iniciales = wb['FICHA RESUMEN PLACO']
+        ws_sauce = wb['FICHA RESUMEN PLACO']
+        ws_croquis = wb['FICHA RESUMEN PLACO']
+        ws_ficha_resumen_placo = wb['FICHA RESUMEN PLACO']
         
         # Escribir datos iniciales en el libro de trabajo
         if not escribir_datos_iniciales(ws_iniciales, esquema, refcat_value):
@@ -252,14 +475,19 @@ def process_folders(window, output_dir, template_file, origin_dir, esquema, prog
         escribir_datos_sauce(ws_sauce, csv_path)
         
         # Agregar imágenes al libro de trabajo
-        add_images_to_excel(ws_croquis, png_path, jpg_path, 700, 700)
+        add_images_to_excel(ws_croquis, png_path, jpg_path, 350, 350)
         
         # Comparar y resaltar diferencias en los datos de SAUCE
         comparar_y_resaltar(ws_sauce)
         
+        # Escribir datos de SAUCE en el libro de trabajo
+        escribir_ficha_resumen(ws_ficha_resumen_placo, esquema, refcat_value)
+       
+        
         # Guardar el libro de trabajo modificado
         wb.save(excel_path)
         logging.info(f"Libro de trabajo guardado en: {excel_path}")
+
 
 # Función para abrir el explorador de archivos
 def seleccionar_directorio(titulo):

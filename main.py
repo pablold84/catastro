@@ -72,7 +72,7 @@ def add_images_to_excel(ws, png_path, jpg_path, desired_width, desired_height):
     if os.path.exists(png_path):
         resize_image(png_path, resized_png_path, desired_width, desired_height)
         img_png = OpenpyxlImage(resized_png_path)
-        img_png.anchor = 'B36'
+        img_png.anchor = 'C13'
         ws.add_image(img_png)
     else:
         logging.warning(f"No se encontró la imagen PNG en la ruta: {png_path}")
@@ -80,7 +80,7 @@ def add_images_to_excel(ws, png_path, jpg_path, desired_width, desired_height):
     if os.path.exists(jpg_path):
         resize_image(jpg_path, resized_jpg_path, desired_width, desired_height)
         img_jpg = OpenpyxlImage(resized_jpg_path)
-        img_jpg.anchor = 'P37'
+        img_jpg.anchor = 'R13'
         ws.add_image(img_jpg)
     else:
         logging.warning(f"No se encontró la imagen JPG en la ruta: {jpg_path}")
@@ -104,7 +104,7 @@ def escribir_datos_iniciales(ws, esquema, refcat_value):
         "ANY_ANTIG": "L"
     }
 
-    start_row = 86
+    start_row = 14
     query = f'SELECT * FROM "{esquema}"."DATOS_INICIALES" WHERE "REFCAT" = %(refcat)s'
     df_datos_iniciales = pd.read_sql_query(query, engine, params={'refcat': refcat_value})
 
@@ -194,7 +194,7 @@ def escribir_datos_sauce(ws, archivo_csv):
         "AA_REFORMA": "AA"
     }
 
-    start_row = 86
+    start_row = 14
     for idx, construccion in enumerate(construcciones_data):
         for campo, col in mapeo_campos_sauce.items():
             valor_campo = construccion[list(mapeo_campos_sauce.keys()).index(campo)]
@@ -217,7 +217,7 @@ def comparar_y_resaltar(ws):
     col_iniciales_end = 13  # Columna M
     col_sauce_start = 15  # Columna O (14 columnas después de A)
     
-    for row in range(86, max_row + 1):
+    for row in range(14, max_row + 1):
         for col in range(col_iniciales_start, col_iniciales_end + 1):
             cell_iniciales = ws.cell(row=row, column=col)
             cell_sauce = ws.cell(row=row, column=col + col_sauce_start - col_iniciales_start)
@@ -231,13 +231,13 @@ def comparar_y_resaltar(ws):
                 # Resaltar el texto en rojo en la parte de SAUCE
                 cell_sauce.font = Font(color="FF0000")  # Rojo
 
-    # Aplicar borde normal a todas las celdas en la parte de Situación Inicial
-    for row in ws.iter_rows(min_row=86, max_row=max_row, min_col=col_sauce_start, max_col=ws.max_column):
+    # Aplicar borde normal a todas las celdas en la parte de Situación Final
+    for row in ws.iter_rows(min_row=14, max_row=max_row, min_col=col_sauce_start, max_col=ws.max_column):
         for cell in row:
             cell.border = normal_border
 
 # Aplicar borde normal a todas las celdas en la parte de Situación Inicial
-    for row in ws.iter_rows(min_row=86, max_row=max_row, min_col=col_iniciales_start, max_col=col_iniciales_end):
+    for row in ws.iter_rows(min_row=14, max_row=max_row, min_col=col_iniciales_start, max_col=col_iniciales_end):
         for cell in row:
             cell.border = normal_border
     
@@ -248,10 +248,10 @@ def comparar_y_resaltar(ws):
         for cell in row:
             cell.alignment = center_alignment
 
-
+    """
     # Aplicar el borde superior a todas las celdas en la fila 3 de la columna A a M
     for col in range(col_iniciales_start, col_iniciales_end + 1):
-        cell = ws.cell(row=3, column=col)
+        cell = ws.cell(row=7, column=col)
         cell.border = Border(top=Side(style='thin'))
 
         # Definir el estilo de borde para la celda M3
@@ -262,7 +262,7 @@ def comparar_y_resaltar(ws):
     )
 
     # Aplicar el estilo de borde a la celda M3
-    cell_M3 = ws.cell(row=3, column=col_iniciales_end)
+    cell_M3 = ws.cell(row=7, column=col_iniciales_end)
     cell_M3.border = border_style_M3
 
         # Definir el estilo de borde para la celda B3
@@ -273,9 +273,9 @@ def comparar_y_resaltar(ws):
     )
 
     # Aplicar el estilo de borde a la celda B3
-    cell_B3 = ws.cell(row=3, column=col_iniciales_start)
+    cell_B3 = ws.cell(row=7, column=col_iniciales_start)
     cell_B3.border = border_style_B3
-
+    """
 
 # Función para definir el estilo dashed en todas las filas hasta la columna AA
 """
@@ -318,7 +318,7 @@ def definir_estilo_dashed(ws):
             )
   """
 
-# Función para obtener el valor de "observaciones" desde la base de datos
+# Función para escribir en la ficha resumen
 def escribir_ficha_resumen(ws, esquema, refcat_value):
     engine = obtener_conexion()
     query = f"""
@@ -462,9 +462,9 @@ def process_folders(window, output_dir, template_file, origin_dir, esquema, prog
         
         # Cargar el libro de trabajo y las hojas necesarias
         wb = openpyxl.load_workbook(excel_path)
-        ws_iniciales = wb['FICHA RESUMEN PLACO']
-        ws_sauce = wb['FICHA RESUMEN PLACO']
-        ws_croquis = wb['FICHA RESUMEN PLACO']
+        ws_iniciales = wb['SAUCE']
+        ws_sauce = wb['SAUCE']
+        ws_croquis = wb['CROQUIS']
         ws_ficha_resumen_placo = wb['FICHA RESUMEN PLACO']
         
         # Escribir datos iniciales en el libro de trabajo
@@ -475,12 +475,12 @@ def process_folders(window, output_dir, template_file, origin_dir, esquema, prog
         escribir_datos_sauce(ws_sauce, csv_path)
         
         # Agregar imágenes al libro de trabajo
-        add_images_to_excel(ws_croquis, png_path, jpg_path, 350, 350)
+        add_images_to_excel(ws_croquis, png_path, jpg_path, 700, 700)
         
         # Comparar y resaltar diferencias en los datos de SAUCE
         comparar_y_resaltar(ws_sauce)
         
-        # Escribir datos de SAUCE en el libro de trabajo
+        # Escribir datos de ficha resumen en el libro de trabajo
         escribir_ficha_resumen(ws_ficha_resumen_placo, esquema, refcat_value)
        
         

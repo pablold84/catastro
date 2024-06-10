@@ -11,6 +11,11 @@ from openpyxl import load_workbook
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import logging
+from datetime import datetime
+
+
+# Variable global para almacenar el resultado de la consulta
+resultado = None
 
 # Configurar logging
 logging.basicConfig(filename='registro.log', level=logging.INFO, 
@@ -33,6 +38,8 @@ def obtener_conexion():
     }
     conn_str = f"postgresql+psycopg2://{conn_params['user']}:{conn_params['password']}@{conn_params['host']}:{conn_params['port']}/{conn_params['dbname']}"
     return create_engine(conn_str)
+
+
 
 # Función para listar las tablas en la base de datos bajo un esquema dado
 def listar_tablas(esquema):
@@ -58,6 +65,27 @@ def obtener_refcat(esquema):
     logging.info(f"Consulta exitosa. Resultado: {df}")
     return df['REFCAT'].tolist()
 
+
+
+def obtener_datos_por_refcat(refcat_value):
+    global resultado
+    engine = obtener_conexion()
+    query = f"""
+        SELECT exp, control, anio, del, mun, nom_mun, fecha_proyecto, fecha_licencia, fecha_act_urbanist, fecha_cert_finob, "REFCAT", sigla_via, situacion, npoli, dupli, cp, cod_incidencia, fecha_inf_ayunt, fecha_otras, cod_incidencia_adicional, tr_digi_grab, tr_campo, fecha_alt, justif_fecha_alteracion, observaciones
+        FROM cabrales.segipsa_placo
+        WHERE "REFCAT" = '{refcat_value}'
+    """
+    df = pd.read_sql_query(query, engine)
+    resultado = df
+    
+
+    if df.empty:
+        logging.warning(f"No se encontró el valor de 'observaciones' para REFCAT {refcat_value}")
+        return None
+    
+    return df
+
+
 # Función para redimensionar y guardar las imágenes
 def resize_image(image_path, output_path, width, height):
     with PILImage.open(image_path) as img:
@@ -65,7 +93,50 @@ def resize_image(image_path, output_path, width, height):
         resized_img.save(output_path)
 
 # Función para añadir imágenes al archivo Excel
-def add_images_to_excel(ws, png_path, jpg_path, desired_width, desired_height):
+def add_images_to_excel(ws, png_path, jpg_path, desired_width, desired_height, esquema, refcat_value):
+    global resultado
+
+##cabecera llamo a la variable global resultado
+    
+    df = resultado
+
+
+ # Iterar sobre cada fila del DataFrame
+    for _, row in df.iterrows():
+        # Nombre del archivo usando el campo 'exp'
+        exp_value = row['exp']
+        file_name = f"FICHA_RESUMEN_PLACO23_{exp_value}.xlsx"
+        file_path = os.path.join(esquema, file_name)
+
+        logging.info(f"Expediente value: {exp_value}")
+
+        # Procesar el campo_1 (agregar del y mun)
+        del_value = str(row["del"]).zfill(2)
+        mun_value = str(row["mun"]).zfill(3)
+        nommun_value = row["nom_mun"]
+        texto_agregar_1 = f"GERENCIA-MUNICIPIO: {del_value}{mun_value} {nommun_value}"
+        ws["A7"].value = texto_agregar_1
+
+        # Procesar el campo_2
+        expediente = f"{row['exp']}.{row['control']}/{row['anio']}"
+        texto_agregar_2 = f"Nº EXPEDIENTE: {expediente}"
+        ws["P7"].value = texto_agregar_2
+
+        # Procesar el campo_4 (REFCAT)
+        REFCAT_value = row["REFCAT"]
+        texto_agregar_4 = f"REFERENCIA CATASTRAL: {REFCAT_value}"
+        ws["A9"].value = texto_agregar_4
+
+        # Procesar el campo L7 (DIRECCIÓN)
+        direccion_texto = f"DIRECCIÓN: {row['sigla_via']} {row['situacion']} {row['npoli']}{row['dupli']} {row['cp']}"
+        ws["P9"].value = direccion_texto
+
+
+
+
+
+
+
     resized_png_path = os.path.join(os.path.dirname(png_path), 'resized_' + os.path.basename(png_path))
     resized_jpg_path = os.path.join(os.path.dirname(jpg_path), 'resized_' + os.path.basename(jpg_path))
     
@@ -87,6 +158,46 @@ def add_images_to_excel(ws, png_path, jpg_path, desired_width, desired_height):
 
 # Función para escribir datos iniciales en el Excel
 def escribir_datos_iniciales(ws, esquema, refcat_value):
+    
+    global resultado
+
+    ##cabecera
+    dfi = resultado
+
+
+ # Iterar sobre cada fila del DataFrame
+    for _, row in dfi.iterrows():
+        # Nombre del archivo usando el campo 'exp'
+        exp_value = row['exp']
+        file_name = f"FICHA_RESUMEN_PLACO23_{exp_value}.xlsx"
+        file_path = os.path.join(esquema, file_name)
+
+        logging.info(f"Expediente value: {exp_value}")
+
+        # Procesar el campo_1 (agregar del y mun)
+        del_value = str(row["del"]).zfill(2)
+        mun_value = str(row["mun"]).zfill(3)
+        nommun_value = row["nom_mun"]
+        texto_agregar_1 = f"GERENCIA-MUNICIPIO: {del_value}{mun_value} {nommun_value}"
+        ws["A7"].value = texto_agregar_1
+
+        # Procesar el campo_2
+        expediente = f"{row['exp']}.{row['control']}/{row['anio']}"
+        texto_agregar_2 = f"Nº EXPEDIENTE: {expediente}"
+        ws["P7"].value = texto_agregar_2
+
+        # Procesar el campo_4 (REFCAT)
+        REFCAT_value = row["REFCAT"]
+        texto_agregar_4 = f"REFERENCIA CATASTRAL: {REFCAT_value}"
+        ws["A9"].value = texto_agregar_4
+
+        # Procesar el campo L7 (DIRECCIÓN)
+        direccion_texto = f"DIRECCIÓN: {row['sigla_via']} {row['situacion']} {row['npoli']}{row['dupli']} {row['cp']}"
+        ws["P9"].value = direccion_texto
+
+
+
+
     engine = obtener_conexion()
     
     mapeo_campos = {
@@ -103,6 +214,7 @@ def escribir_datos_iniciales(ws, esquema, refcat_value):
         "AP_CO_CO": "K",
         "ANY_ANTIG": "L"
     }
+
 
     start_row = 14
     query = f'SELECT * FROM "{esquema}"."DATOS_INICIALES" WHERE "REFCAT" = %(refcat)s'
@@ -320,17 +432,10 @@ def definir_estilo_dashed(ws):
 
 # Función para escribir en la ficha resumen
 def escribir_ficha_resumen(ws, esquema, refcat_value):
-    engine = obtener_conexion()
-    query = f"""
-        SELECT exp, control, anio, del, mun, nom_mun, fecha_proyecto, fecha_licencia, fecha_act_urbanist, fecha_cert_finob, "REFCAT", sigla_via, situacion, npoli, dupli, cp, cod_incidencia, fecha_inf_ayunt, fecha_otras, cod_incidencia_adicional, tr_digi_grab, tr_campo, fecha_alt, justif_fecha_alteracion, observaciones
-        FROM cabrales.segipsa_placo
-        WHERE "REFCAT" = '{refcat_value}'
-    """
-    df = pd.read_sql_query(query, engine)
-
-    if df.empty:
-        logging.warning(f"No se encontró el valor de 'observaciones' para REFCAT {refcat_value}")
-        return ""
+    
+    #cabecera
+    df = obtener_datos_por_refcat(refcat_value)
+    
     
 
     # Iterar sobre cada fila del DataFrame
@@ -340,7 +445,7 @@ def escribir_ficha_resumen(ws, esquema, refcat_value):
         file_name = f"FICHA_RESUMEN_PLACO23_{exp_value}.xlsx"
         file_path = os.path.join(esquema, file_name)
 
-    
+        logging.info(f"Expediente value: {exp_value}")
 
         # Procesar el campo_1 (agregar del y mun)
         del_value = str(row["del"]).zfill(2)
@@ -357,9 +462,11 @@ def escribir_ficha_resumen(ws, esquema, refcat_value):
         # Procesar las fechas en los campos correspondientes
         def procesar_fecha(celda, fecha, celda_fecha):
             if pd.notnull(fecha) and fecha != "":
-                fecha_str = str(fecha)
+                # Convertir la fecha a string y luego al nuevo formato
+                fecha_obj = datetime.strptime(str(fecha), '%Y-%m-%d')
+                fecha_formateada = fecha_obj.strftime('%d/%m/%Y')
                 ws[celda].value = "x"
-                ws[celda_fecha].value = f"FECHA: {fecha_str}"
+                ws[celda_fecha].value = f"FECHA: {fecha_formateada}"
             else:
                 ws[celda_fecha].value = f"FECHA:"
 
@@ -380,12 +487,51 @@ def escribir_ficha_resumen(ws, esquema, refcat_value):
         ws["P9"].value = direccion_texto
 
         # Procesar el campo_5 (cod_incidencia y cod_incidencia_adicional)
+        # Diccionario con códigos y descripciones de tipos de incidencias
+        tipos_incidencias = {
+            "CPAR": "Contorno de parcela o mal cartografiado",
+            "DME": "Parcela o construcción mal geo-referenciada",
+            "BALSA": "Omisión de Balsa de riego",
+            "PCONI": "Omisión de la explotación",
+            "PINFR": "Omisión de infraestructura puntual",
+            "CCUL": "Cambio de cultivo o aprovechamiento",
+            "CUSO": "Cambio de uso",
+            "TIPO": "Tipología o Categoría errónea",
+            "NULO": "Código para indicar que no hay que poner incidencia aquí",
+            "DOCC": "Construcción rústica catastrada pero no valorada",
+            "DEXT": "Declaración extemporánea",
+            "CIC": "Ámbito desactualizado",
+            "DMA": "Ámbito mal geo-referenciado",
+            "PINFL": "Omisión de infraestructura lineal",
+            "DESU": "Omisión de desarrollo urbanístico",
+            "HSOL": "Omisión de huerto solar",
+            "PPEOL": "Omisión de parque eólico",
+            "RECC": "Es necesario hacer recorrido de campo",
+            "SDES": "DEMOLICION TOTAL",
+            "NDES": "DEMOLICON PARCIAL",
+            "NCON": "Ampliación u omisión de alguna construcción",
+            "NPIS": "Omisión de piscina",
+            "PCON": "Alta de obra nueva",
+            "REHAB": "Rehabilitación",
+            "REFOR": "Reforma",
+            "ACT": "Actualización del estado de conservación"
+        }
+
+        # Procesar el campo_5 (cod_incidencia y cod_incidencia_adicional)
         cod_incidencia = row["cod_incidencia"]
         cod_incidencia_adicional = row["cod_incidencia_adicional"]
-        if pd.notnull(cod_incidencia_adicional) and cod_incidencia_adicional != "":
-            texto_agregar_5 = f"{cod_incidencia}/{cod_incidencia_adicional}"
+
+        if pd.notnull(cod_incidencia) and cod_incidencia in tipos_incidencias:
+            descripcion_principal = tipos_incidencias[cod_incidencia].upper()
         else:
-            texto_agregar_5 = str(cod_incidencia)
+            descripcion_principal = cod_incidencia  # En caso de que el código no esté en el diccionario
+
+        if pd.notnull(cod_incidencia_adicional) and cod_incidencia_adicional in tipos_incidencias:
+            descripcion_adicional = tipos_incidencias[cod_incidencia_adicional].upper()
+            texto_agregar_5 = f"{descripcion_principal}/{descripcion_adicional}"
+        else:
+            texto_agregar_5 = descripcion_principal
+
         ws['G11'].value = texto_agregar_5
 
         # Obtener el valor del campo Tr_digi_grab de tus datos
@@ -404,7 +550,13 @@ def escribir_ficha_resumen(ws, esquema, refcat_value):
 
         # Procesar el campo fecha_alt en la celda G25
         fecha_alt_value = row["fecha_alt"]
-        texto_agregar_fecha_alt = f"FECHA: {fecha_alt_value}"
+        if pd.notnull(fecha_alt_value) and fecha_alt_value != "":
+            # Convertir la fecha a string y luego al nuevo formato
+            fecha_alt_obj = datetime.strptime(str(fecha_alt_value), '%Y-%m-%d')
+            fecha_alt_formateada = fecha_alt_obj.strftime('%d/%m/%Y')
+            texto_agregar_fecha_alt = f"FECHA: {fecha_alt_formateada}"
+        else:
+            texto_agregar_fecha_alt = "FECHA:"
         # Establecer el estilo de la fuente en negrita para la celda G25
         ws['G25'].font = Font(bold=True)
         # Asignar el valor a la celda G25
@@ -467,16 +619,20 @@ def process_folders(window, output_dir, template_file, origin_dir, esquema, prog
         ws_croquis = wb['CROQUIS']
         ws_ficha_resumen_placo = wb['FICHA RESUMEN PLACO']
         
-        # Escribir datos iniciales en el libro de trabajo
-        if not escribir_datos_iniciales(ws_iniciales, esquema, refcat_value):
-            continue
         
+      
+        # Agregar imágenes al libro de trabajo
+        add_images_to_excel(ws_croquis, png_path, jpg_path, 700, 700, esquema, refcat_value)
+
         # Escribir datos de SAUCE en el libro de trabajo
         escribir_datos_sauce(ws_sauce, csv_path)
         
-        # Agregar imágenes al libro de trabajo
-        add_images_to_excel(ws_croquis, png_path, jpg_path, 700, 700)
+      # Escribir datos iniciales en el libro de trabajo
+        if not escribir_datos_iniciales(ws_iniciales, esquema, refcat_value):
+            continue
         
+        print("imprimo resultado ", resultado)
+
         # Comparar y resaltar diferencias en los datos de SAUCE
         comparar_y_resaltar(ws_sauce)
         

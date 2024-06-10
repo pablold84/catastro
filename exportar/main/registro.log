@@ -1,0 +1,135 @@
+2024-06-06 08:44:03,212 - INFO - Tablas disponibles en el esquema 'cabrales': ['DATOS_INICIALES', 'linea_control', 'subparce_u', 'incidencias', 'masa_r', 'csv_entrega_mir', 'masa_u', 'parcela_r', 'parcela_u', 'constru_r', 'subparce_r', 'constru_u', 'limites', 'sgipsa_placo_prueba_prueba', 'datos_sauce', 'segipsa_placo', 'src_placo_expedientes', '14F', 'FINCA', '14G']
+2024-06-06 08:44:03,212 - INFO - Consulta ejecutada: SELECT "REFCAT" FROM "cabrales"."segipsa_placo" WHERE "accion" != 'CIER'
+2024-06-06 08:44:03,312 - INFO - Consulta exitosa. Resultado:             REFCAT
+0   33008A00100015
+1   0378005UN5907N
+2   001917000UN58H
+3   33008A03300536
+4   33008G00400315
+5   33008F00100052
+6   33008A02001399
+7   001920400UN58H
+8   33008E00600254
+9   33008A00900032
+10  001314300UN59E
+11  001201100UN58G
+12  000816800UN59E
+13  001329400UN59E
+14  001409000UN59E
+15  000413200UN49F
+16  33008F00500285
+17  001342200UN59E
+18  000708500UN59E
+19  000802600UN59E
+20  33008B00600497
+21  33008B00400359
+22  001501800UN59G
+23  000817700UN59E
+24  001601500UN59G
+25  001509400UN49H
+26  33008B00400427
+27  33008A03700212
+28  33008A00100045
+29  001410500UN59E
+30  33008A03811070
+31  001327300UN59E
+2024-06-06 08:44:03,312 - INFO - Refcat value: 33008A00100015
+2024-06-06 08:44:03,312 - INFO - Plantilla copiada a: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\33008A00100015_FichaResumen.xlsx
+2024-06-06 08:44:03,769 - INFO - Libro de trabajo guardado en: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\33008A00100015_FichaResumen.xlsx
+2024-06-06 08:44:03,769 - INFO - Refcat value: 0378005UN5907N
+2024-06-06 08:44:03,769 - WARNING - Archivos faltantes para REFCAT 0378005UN5907N
+2024-06-06 08:44:03,769 - WARNING - El archivo C:/Trabajo/catastro/modelo6/origen/ficheros/multimedia/Salida\0378005UN5907N\0378005UN5907N.png no se encuentra en la carpeta C:/Trabajo/catastro/modelo6/origen/ficheros/multimedia/Salida\0378005UN5907N
+2024-06-06 08:44:03,769 - WARNING - El archivo C:/Trabajo/catastro/modelo6/origen/ficheros/multimedia/Salida\0378005UN5907N\0378005UN5907N.csv no se encuentra en la carpeta C:/Trabajo/catastro/modelo6/origen/ficheros/multimedia/Salida\0378005UN5907N
+2024-06-06 08:44:03,769 - INFO - Refcat value: 001917000UN58H
+2024-06-06 08:44:03,769 - INFO - Plantilla copiada a: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\001917000UN58H_FichaResumen.xlsx
+2024-06-06 08:44:04,055 - INFO - Libro de trabajo guardado en: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\001917000UN58H_FichaResumen.xlsx
+2024-06-06 08:44:04,055 - INFO - Refcat value: 33008A03300536
+2024-06-06 08:44:04,071 - INFO - Plantilla copiada a: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\33008A03300536_FichaResumen.xlsx
+2024-06-06 08:44:04,355 - INFO - Libro de trabajo guardado en: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\33008A03300536_FichaResumen.xlsx
+2024-06-06 08:44:04,355 - INFO - Refcat value: 33008G00400315
+2024-06-06 08:44:04,355 - WARNING - Archivos faltantes para REFCAT 33008G00400315
+2024-06-06 08:44:04,355 - WARNING - El archivo C:/Trabajo/catastro/modelo6/origen/ficheros/multimedia/Salida\33008G00400315\33008G00400315.csv no se encuentra en la carpeta C:/Trabajo/catastro/modelo6/origen/ficheros/multimedia/Salida\33008G00400315
+2024-06-06 08:44:04,355 - INFO - Refcat value: 33008F00100052
+2024-06-06 08:44:04,355 - INFO - Plantilla copiada a: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\33008F00100052_FichaResumen.xlsx
+2024-06-06 08:44:04,698 - INFO - Libro de trabajo guardado en: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\33008F00100052_FichaResumen.xlsx
+2024-06-06 08:44:04,698 - INFO - Refcat value: 33008A02001399
+2024-06-06 08:44:04,698 - WARNING - Archivos faltantes para REFCAT 33008A02001399
+2024-06-06 08:44:04,698 - WARNING - El archivo C:/Trabajo/catastro/modelo6/origen/ficheros/multimedia/Salida\33008A02001399\33008A02001399.csv no se encuentra en la carpeta C:/Trabajo/catastro/modelo6/origen/ficheros/multimedia/Salida\33008A02001399
+2024-06-06 08:44:04,698 - INFO - Refcat value: 001920400UN58H
+2024-06-06 08:44:04,698 - WARNING - Archivos faltantes para REFCAT 001920400UN58H
+2024-06-06 08:44:04,698 - WARNING - El archivo C:/Trabajo/catastro/modelo6/origen/ficheros/multimedia/Salida\001920400UN58H\001920400UN58H.csv no se encuentra en la carpeta C:/Trabajo/catastro/modelo6/origen/ficheros/multimedia/Salida\001920400UN58H
+2024-06-06 08:44:04,698 - INFO - Refcat value: 33008E00600254
+2024-06-06 08:44:04,698 - WARNING - Archivos faltantes para REFCAT 33008E00600254
+2024-06-06 08:44:04,698 - WARNING - El archivo C:/Trabajo/catastro/modelo6/origen/ficheros/multimedia/Salida\33008E00600254\33008E00600254.png no se encuentra en la carpeta C:/Trabajo/catastro/modelo6/origen/ficheros/multimedia/Salida\33008E00600254
+2024-06-06 08:44:04,698 - WARNING - El archivo C:/Trabajo/catastro/modelo6/origen/ficheros/multimedia/Salida\33008E00600254\33008E00600254.csv no se encuentra en la carpeta C:/Trabajo/catastro/modelo6/origen/ficheros/multimedia/Salida\33008E00600254
+2024-06-06 08:44:04,698 - INFO - Refcat value: 33008A00900032
+2024-06-06 08:44:04,698 - INFO - Plantilla copiada a: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\33008A00900032_FichaResumen.xlsx
+2024-06-06 08:44:05,119 - INFO - Libro de trabajo guardado en: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\33008A00900032_FichaResumen.xlsx
+2024-06-06 08:44:05,119 - INFO - Refcat value: 001314300UN59E
+2024-06-06 08:44:05,119 - WARNING - Archivos faltantes para REFCAT 001314300UN59E
+2024-06-06 08:44:05,119 - WARNING - El archivo C:/Trabajo/catastro/modelo6/origen/ficheros/multimedia/Salida\001314300UN59E\001314300UN59E.csv no se encuentra en la carpeta C:/Trabajo/catastro/modelo6/origen/ficheros/multimedia/Salida\001314300UN59E
+2024-06-06 08:44:05,119 - INFO - Refcat value: 001201100UN58G
+2024-06-06 08:44:05,134 - INFO - Plantilla copiada a: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\001201100UN58G_FichaResumen.xlsx
+2024-06-06 08:44:05,403 - INFO - Libro de trabajo guardado en: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\001201100UN58G_FichaResumen.xlsx
+2024-06-06 08:44:05,403 - INFO - Refcat value: 000816800UN59E
+2024-06-06 08:44:05,403 - INFO - Plantilla copiada a: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\000816800UN59E_FichaResumen.xlsx
+2024-06-06 08:44:05,694 - INFO - Libro de trabajo guardado en: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\000816800UN59E_FichaResumen.xlsx
+2024-06-06 08:44:05,694 - INFO - Refcat value: 001329400UN59E
+2024-06-06 08:44:05,704 - INFO - Plantilla copiada a: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\001329400UN59E_FichaResumen.xlsx
+2024-06-06 08:44:06,430 - INFO - Libro de trabajo guardado en: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\001329400UN59E_FichaResumen.xlsx
+2024-06-06 08:44:06,430 - INFO - Refcat value: 001409000UN59E
+2024-06-06 08:44:06,446 - INFO - Plantilla copiada a: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\001409000UN59E_FichaResumen.xlsx
+2024-06-06 08:44:06,715 - INFO - Libro de trabajo guardado en: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\001409000UN59E_FichaResumen.xlsx
+2024-06-06 08:44:06,715 - INFO - Refcat value: 000413200UN49F
+2024-06-06 08:44:06,715 - INFO - Plantilla copiada a: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\000413200UN49F_FichaResumen.xlsx
+2024-06-06 08:44:07,016 - INFO - Libro de trabajo guardado en: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\000413200UN49F_FichaResumen.xlsx
+2024-06-06 08:44:07,016 - INFO - Refcat value: 33008F00500285
+2024-06-06 08:44:07,016 - INFO - Plantilla copiada a: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\33008F00500285_FichaResumen.xlsx
+2024-06-06 08:44:07,399 - INFO - Libro de trabajo guardado en: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\33008F00500285_FichaResumen.xlsx
+2024-06-06 08:44:07,399 - INFO - Refcat value: 001342200UN59E
+2024-06-06 08:44:07,399 - INFO - Plantilla copiada a: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\001342200UN59E_FichaResumen.xlsx
+2024-06-06 08:44:07,689 - INFO - Libro de trabajo guardado en: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\001342200UN59E_FichaResumen.xlsx
+2024-06-06 08:44:07,689 - INFO - Refcat value: 000708500UN59E
+2024-06-06 08:44:07,689 - INFO - Plantilla copiada a: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\000708500UN59E_FichaResumen.xlsx
+2024-06-06 08:44:07,958 - INFO - Libro de trabajo guardado en: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\000708500UN59E_FichaResumen.xlsx
+2024-06-06 08:44:07,958 - INFO - Refcat value: 000802600UN59E
+2024-06-06 08:44:07,974 - WARNING - Archivos faltantes para REFCAT 000802600UN59E
+2024-06-06 08:44:07,974 - WARNING - El archivo C:/Trabajo/catastro/modelo6/origen/ficheros/multimedia/Salida\000802600UN59E\000802600UN59E.png no se encuentra en la carpeta C:/Trabajo/catastro/modelo6/origen/ficheros/multimedia/Salida\000802600UN59E
+2024-06-06 08:44:07,974 - WARNING - El archivo C:/Trabajo/catastro/modelo6/origen/ficheros/multimedia/Salida\000802600UN59E\000802600UN59E.csv no se encuentra en la carpeta C:/Trabajo/catastro/modelo6/origen/ficheros/multimedia/Salida\000802600UN59E
+2024-06-06 08:44:07,974 - INFO - Refcat value: 33008B00600497
+2024-06-06 08:44:07,974 - INFO - Plantilla copiada a: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\33008B00600497_FichaResumen.xlsx
+2024-06-06 08:44:08,275 - INFO - Libro de trabajo guardado en: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\33008B00600497_FichaResumen.xlsx
+2024-06-06 08:44:08,275 - INFO - Refcat value: 33008B00400359
+2024-06-06 08:44:08,275 - INFO - Plantilla copiada a: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\33008B00400359_FichaResumen.xlsx
+2024-06-06 08:44:08,575 - INFO - Libro de trabajo guardado en: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\33008B00400359_FichaResumen.xlsx
+2024-06-06 08:44:08,575 - INFO - Refcat value: 001501800UN59G
+2024-06-06 08:44:08,590 - INFO - Plantilla copiada a: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\001501800UN59G_FichaResumen.xlsx
+2024-06-06 08:44:08,860 - INFO - Libro de trabajo guardado en: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\001501800UN59G_FichaResumen.xlsx
+2024-06-06 08:44:08,860 - INFO - Refcat value: 000817700UN59E
+2024-06-06 08:44:08,860 - INFO - Plantilla copiada a: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\000817700UN59E_FichaResumen.xlsx
+2024-06-06 08:44:09,176 - INFO - Libro de trabajo guardado en: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\000817700UN59E_FichaResumen.xlsx
+2024-06-06 08:44:09,176 - INFO - Refcat value: 001601500UN59G
+2024-06-06 08:44:09,176 - INFO - Plantilla copiada a: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\001601500UN59G_FichaResumen.xlsx
+2024-06-06 08:44:09,450 - INFO - Libro de trabajo guardado en: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\001601500UN59G_FichaResumen.xlsx
+2024-06-06 08:44:09,450 - INFO - Refcat value: 001509400UN49H
+2024-06-06 08:44:09,461 - INFO - Plantilla copiada a: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\001509400UN49H_FichaResumen.xlsx
+2024-06-06 08:44:09,735 - INFO - Libro de trabajo guardado en: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\001509400UN49H_FichaResumen.xlsx
+2024-06-06 08:44:09,735 - INFO - Refcat value: 33008B00400427
+2024-06-06 08:44:09,745 - INFO - Plantilla copiada a: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\33008B00400427_FichaResumen.xlsx
+2024-06-06 08:44:10,020 - INFO - Libro de trabajo guardado en: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\33008B00400427_FichaResumen.xlsx
+2024-06-06 08:44:10,020 - INFO - Refcat value: 33008A03700212
+2024-06-06 08:44:10,020 - INFO - Plantilla copiada a: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\33008A03700212_FichaResumen.xlsx
+2024-06-06 08:44:10,462 - INFO - Libro de trabajo guardado en: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\33008A03700212_FichaResumen.xlsx
+2024-06-06 08:44:10,462 - INFO - Refcat value: 33008A00100045
+2024-06-06 08:44:10,462 - WARNING - Archivos faltantes para REFCAT 33008A00100045
+2024-06-06 08:44:10,462 - WARNING - El archivo C:/Trabajo/catastro/modelo6/origen/ficheros/multimedia/Salida\33008A00100045\33008A00100045.png no se encuentra en la carpeta C:/Trabajo/catastro/modelo6/origen/ficheros/multimedia/Salida\33008A00100045
+2024-06-06 08:44:10,462 - WARNING - El archivo C:/Trabajo/catastro/modelo6/origen/ficheros/multimedia/Salida\33008A00100045\33008A00100045.csv no se encuentra en la carpeta C:/Trabajo/catastro/modelo6/origen/ficheros/multimedia/Salida\33008A00100045
+2024-06-06 08:44:10,462 - INFO - Refcat value: 001410500UN59E
+2024-06-06 08:44:10,462 - INFO - Plantilla copiada a: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\001410500UN59E_FichaResumen.xlsx
+2024-06-06 08:44:10,822 - INFO - Libro de trabajo guardado en: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\001410500UN59E_FichaResumen.xlsx
+2024-06-06 08:44:10,822 - INFO - Refcat value: 33008A03811070
+2024-06-06 08:44:10,822 - INFO - Plantilla copiada a: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\33008A03811070_FichaResumen.xlsx
+2024-06-06 08:44:11,123 - INFO - Libro de trabajo guardado en: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\33008A03811070_FichaResumen.xlsx
+2024-06-06 08:44:11,139 - INFO - Refcat value: 001327300UN59E
+2024-06-06 08:44:11,139 - INFO - Plantilla copiada a: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\001327300UN59E_FichaResumen.xlsx
+2024-06-06 08:44:11,424 - INFO - Libro de trabajo guardado en: C:/Trabajo/catastro/modelo6/origen/ficheros/iniciales/salida\001327300UN59E_FichaResumen.xlsx

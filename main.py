@@ -16,6 +16,7 @@ from datetime import datetime
 
 # Variable global para almacenar el resultado de la consulta
 resultado = None
+fincas_vias_data = None
 
 # Configurar logging
 logging.basicConfig(filename='registro.log', level=logging.INFO, 
@@ -93,16 +94,13 @@ def resize_image(image_path, output_path, width, height):
 # Función para añadir imágenes al archivo Excel
 def add_images_to_excel(ws, png_path, jpg_path, desired_width, desired_height, esquema, refcat_value):
     global resultado
+    global fincas_vias_data
 
-##cabecera llamo a la variable global resultado
-    
     df = resultado
 
-
- # Iterar sobre cada fila del DataFrame
+    # Iterar sobre cada fila del DataFrame
     for _, row in df.iterrows():
-
-        if(row['REFCAT'] == refcat_value):
+        if row['REFCAT'] == refcat_value:
             # Nombre del archivo usando el campo 'exp'
             exp_value = row['exp']
             file_name = f"FICHA_RESUMEN_PLACO23_{exp_value}.xlsx"
@@ -126,16 +124,11 @@ def add_images_to_excel(ws, png_path, jpg_path, desired_width, desired_height, e
             REFCAT_value = row["REFCAT"]
             texto_agregar_4 = f"REFERENCIA CATASTRAL: {REFCAT_value}"
             ws["A9"].value = texto_agregar_4
-
-            # Procesar el campo L7 (DIRECCIÓN)
-            direccion_texto = f"DIRECCIÓN: {row['sigla_via']} {row['situacion']} {row['npoli']}{row['dupli']} {row['cp']}"
-            ws["P9"].value = direccion_texto
-
-
-
-
-
-
+            # Procesar el campo L7 (DIRECCIÓN) usando fincas_vias_data
+            for finca_via in fincas_vias_data[1:]:
+                    direccion_texto = f"DIRECCIÓN: {finca_via['SIGLA_DENOM']} {finca_via['NUMERO']}{finca_via['NUMERO_DUP']} {row['cp']}"
+                    ws["P9"].value = direccion_texto
+                    break
 
     resized_png_path = os.path.join(os.path.dirname(png_path), 'resized_' + os.path.basename(png_path))
     resized_jpg_path = os.path.join(os.path.dirname(jpg_path), 'resized_' + os.path.basename(jpg_path))
@@ -160,11 +153,10 @@ def add_images_to_excel(ws, png_path, jpg_path, desired_width, desired_height, e
 def escribir_datos_iniciales(ws, esquema, refcat_value):
     
     global resultado
+    global fincas_vias_data
 
     ##cabecera
     dfi = resultado
-
-
 
  # Iterar sobre cada fila del DataFrame
     for _, row in dfi.iterrows():
@@ -193,12 +185,11 @@ def escribir_datos_iniciales(ws, esquema, refcat_value):
             texto_agregar_4 = f"REFERENCIA CATASTRAL: {REFCAT_value}"
             ws["A9"].value = texto_agregar_4
 
-            # Procesar el campo L7 (DIRECCIÓN)
-            direccion_texto = f"DIRECCIÓN: {row['sigla_via']} {row['situacion']} {row['npoli']}{row['dupli']} {row['cp']}"
-            ws["P9"].value = direccion_texto
-
-
-
+           # Procesar el campo L7 (DIRECCIÓN) usando fincas_vias_data
+            for finca_via in fincas_vias_data[1:]:  # Omitir la primera fila con las cabeceras
+                direccion_texto = f"DIRECCIÓN: {finca_via['SIGLA_DENOM']} {finca_via['NUMERO']}{finca_via['NUMERO_DUP']} {row['cp']}"
+                ws["P9"].value = direccion_texto
+                break
 
     engine = obtener_conexion()
     
@@ -216,7 +207,6 @@ def escribir_datos_iniciales(ws, esquema, refcat_value):
         "AP_CO_CO": "K",
         "ANY_ANTIG": "L"
     }
-
 
     start_row = 14
     query = f'SELECT * FROM "{esquema}"."DATOS_INICIALES" WHERE "REFCAT" = %(refcat)s'
@@ -238,12 +228,11 @@ def escribir_datos_iniciales(ws, esquema, refcat_value):
                 for col in range(1, ws.max_column + 1):
                     ws.cell(row=dest_row, column=col)._style = ws.cell(row=start_row, column=col)._style
                 
-
     return True
 
 # Función para escribir datos de SAUCE en el Excel
 def escribir_datos_sauce(ws, archivo_csv):
-    secciones = {"FINCAS": [], "EXPEDIENTE": [], "CONSTRUCCIONES": [], "UNIDADES CONSTRUCTIVAS": []}
+    secciones = {"FINCAS": [], "EXPEDIENTE": [], "CONSTRUCCIONES": [], "UNIDADES CONSTRUCTIVAS": [], "VIAS": []}
     seccion_actual = None
 
     with open(archivo_csv, 'r') as file:
@@ -260,8 +249,33 @@ def escribir_datos_sauce(ws, archivo_csv):
                 seccion_actual = "CONSTRUCCIONES"
             elif line.startswith("UNIDADES CONSTRUCTIVAS"):
                 seccion_actual = "UNIDADES CONSTRUCTIVAS"
+            elif line.startswith("VIAS"):
+                seccion_actual = "VIAS"
             elif seccion_actual:
                 secciones[seccion_actual].append(line.strip())
+
+    vias_data = {}
+    for via in secciones["VIAS"]:
+        campos_via = via.split(";")
+        via_id = campos_via[0]
+        vias_data[via_id] = {
+            "SIGLA": campos_via[1],
+            "DENOMINACION": campos_via[2]
+        }
+
+    fincas_data = []
+    for finca in secciones["FINCAS"]:
+        campos_finca = finca.split(";")
+        finca_via = campos_finca[4]
+        if finca_via in vias_data:#hago el cruce por codigo de via entre la seccion FINCAS y la sección VIAS
+            sigla_denom = vias_data[finca_via]["SIGLA"] + " " + vias_data[finca_via]["DENOMINACION"]
+            fincas_data.append({
+                "VIA": finca_via,
+                "NUMERO": campos_finca[5],
+                "NUMERO_DUP": campos_finca[6],
+                "SIGLA_DENOM": sigla_denom,
+                "DENOMINACION": vias_data[finca_via]["DENOMINACION"]
+            })
 
     construcciones_data = []
     for construccion in secciones["CONSTRUCCIONES"]:
@@ -314,10 +328,20 @@ def escribir_datos_sauce(ws, archivo_csv):
             valor_campo = construccion[list(mapeo_campos_sauce.keys()).index(campo)]
             ws[col + str(start_row + idx)] = valor_campo
             # Copiar formato de la fila anterior
-            
             for col_num in range(1, ws.max_column + 1):
                 ws.cell(row=start_row + idx, column=col_num)._style = ws.cell(row=start_row, column=col_num)._style
 
+    # Variable global para almacenar la información combinada de FINCAS y VIAS
+    global fincas_vias_data
+    fincas_vias_data = []
+
+    for finca in fincas_data:
+        fincas_vias_data.append({
+            "SIGLA_DENOM": finca["SIGLA_DENOM"],
+            "DENOMINACION": finca["DENOMINACION"],
+            "NUMERO": finca["NUMERO"],
+            "NUMERO_DUP": finca["NUMERO_DUP"]
+        })
             
 
 # Función para comparar y resaltar diferencias
@@ -366,11 +390,10 @@ def comparar_y_resaltar(ws):
 # Función para escribir en la ficha resumen
 def escribir_ficha_resumen(ws, esquema, refcat_value):
     global resultado
+    global fincas_vias_data
     #cabecera
     df = resultado
     
-    
-
     # Iterar sobre cada fila del DataFrame
     for _, row in df.iterrows():
         if(row['REFCAT'] == refcat_value):
@@ -416,9 +439,11 @@ def escribir_ficha_resumen(ws, esquema, refcat_value):
             texto_agregar_4 = f"REFERENCIA CATASTRAL: {REFCAT_value}"
             ws["A9"].value = texto_agregar_4
 
-            # Procesar el campo L7 (DIRECCIÓN)
-            direccion_texto = f"DIRECCIÓN: {row['sigla_via']} {row['situacion']} {row['npoli']}{row['dupli']} {row['cp']}"
-            ws["P9"].value = direccion_texto
+            # Procesar el campo L7 (DIRECCIÓN) usando fincas_vias_data
+            for finca_via in fincas_vias_data[1:]:  # Omitir la primera fila con las cabeceras
+                direccion_texto = f"DIRECCIÓN: {finca_via['SIGLA_DENOM']} {finca_via['NUMERO']}{finca_via['NUMERO_DUP']} {row['cp']}"
+                ws["P9"].value = direccion_texto
+                break
 
             # Procesar el campo_5 (cod_incidencia y cod_incidencia_adicional)
             # Diccionario con códigos y descripciones de tipos de incidencias
@@ -507,8 +532,6 @@ def escribir_ficha_resumen(ws, esquema, refcat_value):
             # Asignar el valor a la celda G29
             ws['G29'].value = observaciones_value
 
-
-
 # Función para procesar cada carpeta en el directorio de origen
 def process_folders(window, output_dir, template_file, origin_dir, esquema, progress_label, progress_bar):
     refcat_list = obtener_refcat(esquema)
@@ -555,14 +578,12 @@ def process_folders(window, output_dir, template_file, origin_dir, esquema, prog
         ws_croquis = wb['CROQUIS']
         ws_ficha_resumen_placo = wb['FICHA RESUMEN PLACO']
         
-        
+        # Escribir datos de SAUCE en el libro de trabajo
+        escribir_datos_sauce(ws_sauce, csv_path)
       
         # Agregar imágenes al libro de trabajo
         add_images_to_excel(ws_croquis, png_path, jpg_path, 700, 700, esquema, refcat_value)
 
-        # Escribir datos de SAUCE en el libro de trabajo
-        escribir_datos_sauce(ws_sauce, csv_path)
-        
       # Escribir datos iniciales en el libro de trabajo
         if not escribir_datos_iniciales(ws_iniciales, esquema, refcat_value):
             continue

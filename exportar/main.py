@@ -13,6 +13,10 @@ from tkinter import filedialog, messagebox, ttk
 import logging
 from datetime import datetime
 
+
+# Variable global para almacenar el resultado de la consulta
+resultado = None
+
 # Configurar logging
 logging.basicConfig(filename='registro.log', level=logging.INFO, 
                     format='%(asctime)s - %(levelname)s - %(message)s')
@@ -63,21 +67,22 @@ def obtener_refcat(esquema):
 
 
 
-def obtener_datos_por_refcat(refcat_value):
+def obtener_datos_por_refcat():
+    global resultado
     engine = obtener_conexion()
     query = f"""
         SELECT exp, control, anio, del, mun, nom_mun, fecha_proyecto, fecha_licencia, fecha_act_urbanist, fecha_cert_finob, "REFCAT", sigla_via, situacion, npoli, dupli, cp, cod_incidencia, fecha_inf_ayunt, fecha_otras, cod_incidencia_adicional, tr_digi_grab, tr_campo, fecha_alt, justif_fecha_alteracion, observaciones
         FROM cabrales.segipsa_placo
-        WHERE "REFCAT" = '{refcat_value}'
     """
     df = pd.read_sql_query(query, engine)
+    resultado = df
+    
 
     if df.empty:
-        logging.warning(f"No se encontró el valor de 'observaciones' para REFCAT {refcat_value}")
+        logging.warning(f"No se encontró el valor de 'observaciones'")
         return None
     
     return df
-
 
 # Función para redimensionar y guardar las imágenes
 def resize_image(image_path, output_path, width, height):
@@ -87,46 +92,44 @@ def resize_image(image_path, output_path, width, height):
 
 # Función para añadir imágenes al archivo Excel
 def add_images_to_excel(ws, png_path, jpg_path, desired_width, desired_height, esquema, refcat_value):
+    global resultado
 
-
-
-
-
-
-##cabecera
+##cabecera llamo a la variable global resultado
     
-    df = obtener_datos_por_refcat(refcat_value)
+    df = resultado
 
 
  # Iterar sobre cada fila del DataFrame
     for _, row in df.iterrows():
-        # Nombre del archivo usando el campo 'exp'
-        exp_value = row['exp']
-        file_name = f"FICHA_RESUMEN_PLACO23_{exp_value}.xlsx"
-        file_path = os.path.join(esquema, file_name)
 
-        logging.info(f"Expediente value: {exp_value}")
+        if(row['REFCAT'] == refcat_value):
+            # Nombre del archivo usando el campo 'exp'
+            exp_value = row['exp']
+            file_name = f"FICHA_RESUMEN_PLACO23_{exp_value}.xlsx"
+            file_path = os.path.join(esquema, file_name)
 
-        # Procesar el campo_1 (agregar del y mun)
-        del_value = str(row["del"]).zfill(2)
-        mun_value = str(row["mun"]).zfill(3)
-        nommun_value = row["nom_mun"]
-        texto_agregar_1 = f"GERENCIA-MUNICIPIO: {del_value}{mun_value} {nommun_value}"
-        ws["A7"].value = texto_agregar_1
+            logging.info(f"Expediente value: {exp_value}")
 
-        # Procesar el campo_2
-        expediente = f"{row['exp']}.{row['control']}/{row['anio']}"
-        texto_agregar_2 = f"Nº EXPEDIENTE: {expediente}"
-        ws["P7"].value = texto_agregar_2
+            # Procesar el campo_1 (agregar del y mun)
+            del_value = str(row["del"]).zfill(2)
+            mun_value = str(row["mun"]).zfill(3)
+            nommun_value = row["nom_mun"]
+            texto_agregar_1 = f"GERENCIA-MUNICIPIO: {del_value}{mun_value} {nommun_value}"
+            ws["A7"].value = texto_agregar_1
 
-        # Procesar el campo_4 (REFCAT)
-        REFCAT_value = row["REFCAT"]
-        texto_agregar_4 = f"REFERENCIA CATASTRAL: {REFCAT_value}"
-        ws["A9"].value = texto_agregar_4
+            # Procesar el campo_2
+            expediente = f"{row['exp']}.{row['control']}/{row['anio']}"
+            texto_agregar_2 = f"Nº EXPEDIENTE: {expediente}"
+            ws["P7"].value = texto_agregar_2
 
-        # Procesar el campo L7 (DIRECCIÓN)
-        direccion_texto = f"DIRECCIÓN: {row['sigla_via']} {row['situacion']} {row['npoli']}{row['dupli']} {row['cp']}"
-        ws["P9"].value = direccion_texto
+            # Procesar el campo_4 (REFCAT)
+            REFCAT_value = row["REFCAT"]
+            texto_agregar_4 = f"REFERENCIA CATASTRAL: {REFCAT_value}"
+            ws["A9"].value = texto_agregar_4
+
+            # Procesar el campo L7 (DIRECCIÓN)
+            direccion_texto = f"DIRECCIÓN: {row['sigla_via']} {row['situacion']} {row['npoli']}{row['dupli']} {row['cp']}"
+            ws["P9"].value = direccion_texto
 
 
 
@@ -155,6 +158,48 @@ def add_images_to_excel(ws, png_path, jpg_path, desired_width, desired_height, e
 
 # Función para escribir datos iniciales en el Excel
 def escribir_datos_iniciales(ws, esquema, refcat_value):
+    
+    global resultado
+
+    ##cabecera
+    dfi = resultado
+
+
+
+ # Iterar sobre cada fila del DataFrame
+    for _, row in dfi.iterrows():
+         if(row['REFCAT'] == refcat_value):
+            # Nombre del archivo usando el campo 'exp'
+            exp_value = row['exp']
+            file_name = f"FICHA_RESUMEN_PLACO23_{exp_value}.xlsx"
+            file_path = os.path.join(esquema, file_name)
+
+            logging.info(f"Expediente value: {exp_value}")
+
+            # Procesar el campo_1 (agregar del y mun)
+            del_value = str(row["del"]).zfill(2)
+            mun_value = str(row["mun"]).zfill(3)
+            nommun_value = row["nom_mun"]
+            texto_agregar_1 = f"GERENCIA-MUNICIPIO: {del_value}{mun_value} {nommun_value}"
+            ws["A7"].value = texto_agregar_1
+
+            # Procesar el campo_2
+            expediente = f"{row['exp']}.{row['control']}/{row['anio']}"
+            texto_agregar_2 = f"Nº EXPEDIENTE: {expediente}"
+            ws["P7"].value = texto_agregar_2
+
+            # Procesar el campo_4 (REFCAT)
+            REFCAT_value = row["REFCAT"]
+            texto_agregar_4 = f"REFERENCIA CATASTRAL: {REFCAT_value}"
+            ws["A9"].value = texto_agregar_4
+
+            # Procesar el campo L7 (DIRECCIÓN)
+            direccion_texto = f"DIRECCIÓN: {row['sigla_via']} {row['situacion']} {row['npoli']}{row['dupli']} {row['cp']}"
+            ws["P9"].value = direccion_texto
+
+
+
+
     engine = obtener_conexion()
     
     mapeo_campos = {
@@ -171,49 +216,6 @@ def escribir_datos_iniciales(ws, esquema, refcat_value):
         "AP_CO_CO": "K",
         "ANY_ANTIG": "L"
     }
-
-
-
-    ##cabecera
-    df = obtener_datos_por_refcat(refcat_value)
-
-
- # Iterar sobre cada fila del DataFrame
-    for _, row in df.iterrows():
-        # Nombre del archivo usando el campo 'exp'
-        exp_value = row['exp']
-        file_name = f"FICHA_RESUMEN_PLACO23_{exp_value}.xlsx"
-        file_path = os.path.join(esquema, file_name)
-
-        logging.info(f"Expediente value: {exp_value}")
-
-        # Procesar el campo_1 (agregar del y mun)
-        del_value = str(row["del"]).zfill(2)
-        mun_value = str(row["mun"]).zfill(3)
-        nommun_value = row["nom_mun"]
-        texto_agregar_1 = f"GERENCIA-MUNICIPIO: {del_value}{mun_value} {nommun_value}"
-        ws["A7"].value = texto_agregar_1
-
-        # Procesar el campo_2
-        expediente = f"{row['exp']}.{row['control']}/{row['anio']}"
-        texto_agregar_2 = f"Nº EXPEDIENTE: {expediente}"
-        ws["P7"].value = texto_agregar_2
-
-        # Procesar el campo_4 (REFCAT)
-        REFCAT_value = row["REFCAT"]
-        texto_agregar_4 = f"REFERENCIA CATASTRAL: {REFCAT_value}"
-        ws["A9"].value = texto_agregar_4
-
-        # Procesar el campo L7 (DIRECCIÓN)
-        direccion_texto = f"DIRECCIÓN: {row['sigla_via']} {row['situacion']} {row['npoli']}{row['dupli']} {row['cp']}"
-        ws["P9"].value = direccion_texto
-
-
-
-
-
-
-
 
 
     start_row = 14
@@ -360,218 +362,150 @@ def comparar_y_resaltar(ws):
         for cell in row:
             cell.alignment = center_alignment
 
-    """
-    # Aplicar el borde superior a todas las celdas en la fila 3 de la columna A a M
-    for col in range(col_iniciales_start, col_iniciales_end + 1):
-        cell = ws.cell(row=7, column=col)
-        cell.border = Border(top=Side(style='thin'))
-
-        # Definir el estilo de borde para la celda M3
-    border_style_M3 = Border(
-        top=Side(style='thin'),
-        right=Side(style='thin'),
-        bottom=Side(style='thin')
-    )
-
-    # Aplicar el estilo de borde a la celda M3
-    cell_M3 = ws.cell(row=7, column=col_iniciales_end)
-    cell_M3.border = border_style_M3
-
-        # Definir el estilo de borde para la celda B3
-    border_style_B3 = Border(
-        top=Side(style='thin'),
-        left=Side(style='thin'),
-        bottom=Side(style='thin')
-    )
-
-    # Aplicar el estilo de borde a la celda B3
-    cell_B3 = ws.cell(row=7, column=col_iniciales_start)
-    cell_B3.border = border_style_B3
-    """
-
-# Función para definir el estilo dashed en todas las filas hasta la columna AA
-"""
-def definir_estilo_dashed(ws):
-    #double_side = Side(border_style="medium", color="000000")
-    #dashed_side = Side(border_style="dashed", color="FF0000")
-   
-    # Aplicar a todas las celdas
-    for row in ws.iter_rows():
-        for cell in row:
-            border = Border(
-                top=cell.border.top,
-                left=cell.border.left,
-                right=cell.border.right,
-                bottom=cell.border.bottom
-            )
-            cell.border = border
     
-    # Aplicar borde derecho grueso a la columna M
-    for cell in ws['M']:
-        cell.border = Border(
-            right=cell.border.right
-        )
-
-    # Aplicar a la columna N (borde izquierdo y derecho)
-    for cell in ws['N']:
-        cell.border = Border(
-            left=cell.border.left
-        )
-
-    # Aplicar a todas las celdas desde la columna O en adelante
-    
-    for col in ws.iter_cols(min_col=15, max_col=ws.max_column):
-        for cell in col:
-            cell.border = Border(
-                top=cell.border.top,
-                left=cell.border.left,
-                right=cell.border.right,
-                bottom=cell.border.bottom
-            )
-  """
-
 # Función para escribir en la ficha resumen
 def escribir_ficha_resumen(ws, esquema, refcat_value):
-    
+    global resultado
     #cabecera
-    df = obtener_datos_por_refcat(refcat_value)
+    df = resultado
     
     
 
     # Iterar sobre cada fila del DataFrame
     for _, row in df.iterrows():
-        # Nombre del archivo usando el campo 'exp'
-        exp_value = row['exp']
-        file_name = f"FICHA_RESUMEN_PLACO23_{exp_value}.xlsx"
-        file_path = os.path.join(esquema, file_name)
+        if(row['REFCAT'] == refcat_value):
+            # Nombre del archivo usando el campo 'exp'
+            exp_value = row['exp']
+            file_name = f"FICHA_RESUMEN_PLACO23_{exp_value}.xlsx"
+            file_path = os.path.join(esquema, file_name)
 
-        logging.info(f"Expediente value: {exp_value}")
+            logging.info(f"Expediente value: {exp_value}")
 
-        # Procesar el campo_1 (agregar del y mun)
-        del_value = str(row["del"]).zfill(2)
-        mun_value = str(row["mun"]).zfill(3)
-        nommun_value = row["nom_mun"]
-        texto_agregar_1 = f"GERENCIA-MUNICIPIO: {del_value}{mun_value} {nommun_value}"
-        ws["A7"].value = texto_agregar_1
+            # Procesar el campo_1 (agregar del y mun)
+            del_value = str(row["del"]).zfill(2)
+            mun_value = str(row["mun"]).zfill(3)
+            nommun_value = row["nom_mun"]
+            texto_agregar_1 = f"GERENCIA-MUNICIPIO: {del_value}{mun_value} {nommun_value}"
+            ws["A7"].value = texto_agregar_1
 
-        # Procesar el campo_2
-        expediente = f"{row['exp']}.{row['control']}/{row['anio']}"
-        texto_agregar_2 = f"Nº EXPEDIENTE: {expediente}"
-        ws["P7"].value = texto_agregar_2
+            # Procesar el campo_2
+            expediente = f"{row['exp']}.{row['control']}/{row['anio']}"
+            texto_agregar_2 = f"Nº EXPEDIENTE: {expediente}"
+            ws["P7"].value = texto_agregar_2
 
-        # Procesar las fechas en los campos correspondientes
-        def procesar_fecha(celda, fecha, celda_fecha):
-            if pd.notnull(fecha) and fecha != "":
-                # Convertir la fecha a string y luego al nuevo formato
-                fecha_obj = datetime.strptime(str(fecha), '%Y-%m-%d')
-                fecha_formateada = fecha_obj.strftime('%d/%m/%Y')
-                ws[celda].value = "x"
-                ws[celda_fecha].value = f"FECHA: {fecha_formateada}"
+            # Procesar las fechas en los campos correspondientes
+            def procesar_fecha(celda, fecha, celda_fecha):
+                if pd.notnull(fecha) and fecha != "":
+                    # Convertir la fecha a string y luego al nuevo formato
+                    fecha_obj = datetime.strptime(str(fecha), '%Y-%m-%d')
+                    fecha_formateada = fecha_obj.strftime('%d/%m/%Y')
+                    ws[celda].value = "x"
+                    ws[celda_fecha].value = f"FECHA: {fecha_formateada}"
+                else:
+                    ws[celda_fecha].value = f"FECHA:"
+
+            procesar_fecha('G20', row['fecha_proyecto'], 'H21')
+            procesar_fecha('O20', row['fecha_licencia'], 'P21')
+            procesar_fecha('V20', row['fecha_act_urbanist'], 'W21')
+            procesar_fecha('G22', row['fecha_cert_finob'], 'H23')
+            procesar_fecha('O22', row['fecha_inf_ayunt'], 'P23')
+            procesar_fecha('V22', row['fecha_otras'], 'W23')
+
+            # Procesar el campo_4 (REFCAT)
+            REFCAT_value = row["REFCAT"]
+            texto_agregar_4 = f"REFERENCIA CATASTRAL: {REFCAT_value}"
+            ws["A9"].value = texto_agregar_4
+
+            # Procesar el campo L7 (DIRECCIÓN)
+            direccion_texto = f"DIRECCIÓN: {row['sigla_via']} {row['situacion']} {row['npoli']}{row['dupli']} {row['cp']}"
+            ws["P9"].value = direccion_texto
+
+            # Procesar el campo_5 (cod_incidencia y cod_incidencia_adicional)
+            # Diccionario con códigos y descripciones de tipos de incidencias
+            tipos_incidencias = {
+                "CPAR": "Contorno de parcela o mal cartografiado",
+                "DME": "Parcela o construcción mal geo-referenciada",
+                "BALSA": "Omisión de Balsa de riego",
+                "PCONI": "Omisión de la explotación",
+                "PINFR": "Omisión de infraestructura puntual",
+                "CCUL": "Cambio de cultivo o aprovechamiento",
+                "CUSO": "Cambio de uso",
+                "TIPO": "Tipología o Categoría errónea",
+                "NULO": "Código para indicar que no hay que poner incidencia aquí",
+                "DOCC": "Construcción rústica catastrada pero no valorada",
+                "DEXT": "Declaración extemporánea",
+                "CIC": "Ámbito desactualizado",
+                "DMA": "Ámbito mal geo-referenciado",
+                "PINFL": "Omisión de infraestructura lineal",
+                "DESU": "Omisión de desarrollo urbanístico",
+                "HSOL": "Omisión de huerto solar",
+                "PPEOL": "Omisión de parque eólico",
+                "RECC": "Es necesario hacer recorrido de campo",
+                "SDES": "DEMOLICION TOTAL",
+                "NDES": "DEMOLICON PARCIAL",
+                "NCON": "Ampliación u omisión de alguna construcción",
+                "NPIS": "Omisión de piscina",
+                "PCON": "Alta de obra nueva",
+                "REHAB": "Rehabilitación",
+                "REFOR": "Reforma",
+                "ACT": "Actualización del estado de conservación"
+            }
+
+            # Procesar el campo_5 (cod_incidencia y cod_incidencia_adicional)
+            cod_incidencia = row["cod_incidencia"]
+            cod_incidencia_adicional = row["cod_incidencia_adicional"]
+
+            if pd.notnull(cod_incidencia) and cod_incidencia in tipos_incidencias:
+                descripcion_principal = tipos_incidencias[cod_incidencia].upper()
             else:
-                ws[celda_fecha].value = f"FECHA:"
+                descripcion_principal = cod_incidencia  # En caso de que el código no esté en el diccionario
 
-        procesar_fecha('G20', row['fecha_proyecto'], 'H21')
-        procesar_fecha('O20', row['fecha_licencia'], 'P21')
-        procesar_fecha('V20', row['fecha_act_urbanist'], 'W21')
-        procesar_fecha('G22', row['fecha_cert_finob'], 'H23')
-        procesar_fecha('O22', row['fecha_inf_ayunt'], 'P23')
-        procesar_fecha('V22', row['fecha_otras'], 'W23')
+            if pd.notnull(cod_incidencia_adicional) and cod_incidencia_adicional in tipos_incidencias:
+                descripcion_adicional = tipos_incidencias[cod_incidencia_adicional].upper()
+                texto_agregar_5 = f"{descripcion_principal}/{descripcion_adicional}"
+            else:
+                texto_agregar_5 = descripcion_principal
 
-        # Procesar el campo_4 (REFCAT)
-        REFCAT_value = row["REFCAT"]
-        texto_agregar_4 = f"REFERENCIA CATASTRAL: {REFCAT_value}"
-        ws["A9"].value = texto_agregar_4
+            ws['G11'].value = texto_agregar_5
 
-        # Procesar el campo L7 (DIRECCIÓN)
-        direccion_texto = f"DIRECCIÓN: {row['sigla_via']} {row['situacion']} {row['npoli']}{row['dupli']} {row['cp']}"
-        ws["P9"].value = direccion_texto
+            # Obtener el valor del campo Tr_digi_grab de tus datos
+            tr_digi_grab_value = row["tr_digi_grab"]
+            # Establecer el valor del campo en la celda K13
+            ws['K13'] = tr_digi_grab_value
+            # Establecer el estilo de fuente en cursiva para la celda K13
+            ws['K13'].font = Font(italic=True)
 
-        # Procesar el campo_5 (cod_incidencia y cod_incidencia_adicional)
-        # Diccionario con códigos y descripciones de tipos de incidencias
-        tipos_incidencias = {
-            "CPAR": "Contorno de parcela o mal cartografiado",
-            "DME": "Parcela o construcción mal geo-referenciada",
-            "BALSA": "Omisión de Balsa de riego",
-            "PCONI": "Omisión de la explotación",
-            "PINFR": "Omisión de infraestructura puntual",
-            "CCUL": "Cambio de cultivo o aprovechamiento",
-            "CUSO": "Cambio de uso",
-            "TIPO": "Tipología o Categoría errónea",
-            "NULO": "Código para indicar que no hay que poner incidencia aquí",
-            "DOCC": "Construcción rústica catastrada pero no valorada",
-            "DEXT": "Declaración extemporánea",
-            "CIC": "Ámbito desactualizado",
-            "DMA": "Ámbito mal geo-referenciado",
-            "PINFL": "Omisión de infraestructura lineal",
-            "DESU": "Omisión de desarrollo urbanístico",
-            "HSOL": "Omisión de huerto solar",
-            "PPEOL": "Omisión de parque eólico",
-            "RECC": "Es necesario hacer recorrido de campo",
-            "SDES": "DEMOLICION TOTAL",
-            "NDES": "DEMOLICON PARCIAL",
-            "NCON": "Ampliación u omisión de alguna construcción",
-            "NPIS": "Omisión de piscina",
-            "PCON": "Alta de obra nueva",
-            "REHAB": "Rehabilitación",
-            "REFOR": "Reforma",
-            "ACT": "Actualización del estado de conservación"
-        }
+            # Obtener el valor del campo Tr_campo de tus datos
+            tr_campo_value = row["tr_campo"]
+            # Establecer el valor del campo en la celda K16
+            ws['K16'] = tr_campo_value
+            # Establecer el estilo de fuente en cursiva para la celda K16
+            ws['K16'].font = Font(italic=True)
 
-        # Procesar el campo_5 (cod_incidencia y cod_incidencia_adicional)
-        cod_incidencia = row["cod_incidencia"]
-        cod_incidencia_adicional = row["cod_incidencia_adicional"]
+            # Procesar el campo fecha_alt en la celda G25
+            fecha_alt_value = row["fecha_alt"]
+            if pd.notnull(fecha_alt_value) and fecha_alt_value != "":
+                # Convertir la fecha a string y luego al nuevo formato
+                fecha_alt_obj = datetime.strptime(str(fecha_alt_value), '%Y-%m-%d')
+                fecha_alt_formateada = fecha_alt_obj.strftime('%d/%m/%Y')
+                texto_agregar_fecha_alt = f"FECHA: {fecha_alt_formateada}"
+            else:
+                texto_agregar_fecha_alt = "FECHA:"
+            # Establecer el estilo de la fuente en negrita para la celda G25
+            ws['G25'].font = Font(bold=True)
+            # Asignar el valor a la celda G25
+            ws['G25'].value = texto_agregar_fecha_alt
 
-        if pd.notnull(cod_incidencia) and cod_incidencia in tipos_incidencias:
-            descripcion_principal = tipos_incidencias[cod_incidencia].upper()
-        else:
-            descripcion_principal = cod_incidencia  # En caso de que el código no esté en el diccionario
+            # Procesar el campo justif_fecha_alteracion en la celda G26
+            justif_fecha_alteracion_value = row["justif_fecha_alteracion"]
+            texto_agregar_justif_fecha_alteracion = f"MOTIVACIÓN: {justif_fecha_alteracion_value}"
+            # Asignar el valor a la celda G26
+            ws['G26'].value = texto_agregar_justif_fecha_alteracion
 
-        if pd.notnull(cod_incidencia_adicional) and cod_incidencia_adicional in tipos_incidencias:
-            descripcion_adicional = tipos_incidencias[cod_incidencia_adicional].upper()
-            texto_agregar_5 = f"{descripcion_principal}/{descripcion_adicional}"
-        else:
-            texto_agregar_5 = descripcion_principal
-
-        ws['G11'].value = texto_agregar_5
-
-        # Obtener el valor del campo Tr_digi_grab de tus datos
-        tr_digi_grab_value = row["tr_digi_grab"]
-        # Establecer el valor del campo en la celda K13
-        ws['K13'] = tr_digi_grab_value
-        # Establecer el estilo de fuente en cursiva para la celda K13
-        ws['K13'].font = Font(italic=True)
-
-        # Obtener el valor del campo Tr_campo de tus datos
-        tr_campo_value = row["tr_campo"]
-        # Establecer el valor del campo en la celda K16
-        ws['K16'] = tr_campo_value
-        # Establecer el estilo de fuente en cursiva para la celda K16
-        ws['K16'].font = Font(italic=True)
-
-        # Procesar el campo fecha_alt en la celda G25
-        fecha_alt_value = row["fecha_alt"]
-        if pd.notnull(fecha_alt_value) and fecha_alt_value != "":
-            # Convertir la fecha a string y luego al nuevo formato
-            fecha_alt_obj = datetime.strptime(str(fecha_alt_value), '%Y-%m-%d')
-            fecha_alt_formateada = fecha_alt_obj.strftime('%d/%m/%Y')
-            texto_agregar_fecha_alt = f"FECHA: {fecha_alt_formateada}"
-        else:
-            texto_agregar_fecha_alt = "FECHA:"
-        # Establecer el estilo de la fuente en negrita para la celda G25
-        ws['G25'].font = Font(bold=True)
-        # Asignar el valor a la celda G25
-        ws['G25'].value = texto_agregar_fecha_alt
-
-        # Procesar el campo justif_fecha_alteracion en la celda G26
-        justif_fecha_alteracion_value = row["justif_fecha_alteracion"]
-        texto_agregar_justif_fecha_alteracion = f"MOTIVACIÓN: {justif_fecha_alteracion_value}"
-        # Asignar el valor a la celda G26
-        ws['G26'].value = texto_agregar_justif_fecha_alteracion
-
-        # Procesar el campo de observaciones en la celda G29
-        observaciones_value = row["observaciones"]
-        # Asignar el valor a la celda G29
-        ws['G29'].value = observaciones_value
+            # Procesar el campo de observaciones en la celda G29
+            observaciones_value = row["observaciones"]
+            # Asignar el valor a la celda G29
+            ws['G29'].value = observaciones_value
 
 
 
@@ -579,6 +513,8 @@ def escribir_ficha_resumen(ws, esquema, refcat_value):
 def process_folders(window, output_dir, template_file, origin_dir, esquema, progress_label, progress_bar):
     refcat_list = obtener_refcat(esquema)
     total_folders = len(refcat_list)
+
+    obtener_datos_por_refcat()
 
     for index, refcat_value in enumerate(refcat_list):
         refcat_value = refcat_value.strip()  # Asegúrate de que no haya espacios en blanco
@@ -619,15 +555,17 @@ def process_folders(window, output_dir, template_file, origin_dir, esquema, prog
         ws_croquis = wb['CROQUIS']
         ws_ficha_resumen_placo = wb['FICHA RESUMEN PLACO']
         
-        # Escribir datos iniciales en el libro de trabajo
-        if not escribir_datos_iniciales(ws_iniciales, esquema, refcat_value):
-            continue
         
+      
+        # Agregar imágenes al libro de trabajo
+        add_images_to_excel(ws_croquis, png_path, jpg_path, 700, 700, esquema, refcat_value)
+
         # Escribir datos de SAUCE en el libro de trabajo
         escribir_datos_sauce(ws_sauce, csv_path)
         
-        # Agregar imágenes al libro de trabajo
-        add_images_to_excel(ws_croquis, png_path, jpg_path, 700, 700, esquema, refcat_value)
+      # Escribir datos iniciales en el libro de trabajo
+        if not escribir_datos_iniciales(ws_iniciales, esquema, refcat_value):
+            continue
         
         # Comparar y resaltar diferencias en los datos de SAUCE
         comparar_y_resaltar(ws_sauce)

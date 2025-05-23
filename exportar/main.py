@@ -16,6 +16,7 @@ from datetime import datetime
 
 # Variable global para almacenar el resultado de la consulta
 resultado = None
+fincas_vias_data = None
 
 # Configurar logging
 logging.basicConfig(filename='registro.log', level=logging.INFO, 
@@ -67,12 +68,12 @@ def obtener_refcat(esquema):
 
 
 
-def obtener_datos_por_refcat():
+def obtener_datos_por_refcat(esquema):
     global resultado
     engine = obtener_conexion()
     query = f"""
         SELECT exp, control, anio, del, mun, nom_mun, fecha_proyecto, fecha_licencia, fecha_act_urbanist, fecha_cert_finob, "REFCAT", sigla_via, situacion, npoli, dupli, cp, cod_incidencia, fecha_inf_ayunt, fecha_otras, cod_incidencia_adicional, tr_digi_grab, tr_campo, fecha_alt, justif_fecha_alteracion, observaciones
-        FROM cabrales.segipsa_placo
+        FROM {esquema}.segipsa_placo
     """
     df = pd.read_sql_query(query, engine)
     resultado = df
@@ -91,18 +92,15 @@ def resize_image(image_path, output_path, width, height):
         resized_img.save(output_path)
 
 # Función para añadir imágenes al archivo Excel
-def add_images_to_excel(ws, png_path, jpg_path, desired_width, desired_height, esquema, refcat_value):
+def add_images_to_excel(ws, png_path, jpg_path, esquema, refcat_value):
     global resultado
+    global fincas_vias_data
 
-##cabecera llamo a la variable global resultado
-    
     df = resultado
 
-
- # Iterar sobre cada fila del DataFrame
+    # Iterar sobre cada fila del DataFrame
     for _, row in df.iterrows():
-
-        if(row['REFCAT'] == refcat_value):
+        if row['REFCAT'] == refcat_value:
             # Nombre del archivo usando el campo 'exp'
             exp_value = row['exp']
             file_name = f"FICHA_RESUMEN_PLACO23_{exp_value}.xlsx"
@@ -127,48 +125,54 @@ def add_images_to_excel(ws, png_path, jpg_path, desired_width, desired_height, e
             texto_agregar_4 = f"REFERENCIA CATASTRAL: {REFCAT_value}"
             ws["A9"].value = texto_agregar_4
 
-            # Procesar el campo L7 (DIRECCIÓN)
-            direccion_texto = f"DIRECCIÓN: {row['sigla_via']} {row['situacion']} {row['npoli']}{row['dupli']} {row['cp']}"
-            ws["P9"].value = direccion_texto
+            # Procesar el campo L7 (DIRECCIÓN) usando fincas_vias_data
+            for finca_via in fincas_vias_data[1:]:  # Omitir la primera fila con las cabeceras
+                # Verificar si cada campo es None y reemplazarlo por una cadena vacía si es necesario
+                direccion_texto = (
+                    f"DIRECCIÓN: "
+                    f"{finca_via['SIGLA_DENOM'] if finca_via['SIGLA_DENOM'] is not None else ''} "
+                    f"{finca_via['NUMERO'] if finca_via['NUMERO'] is not None else ''}"
+                    f"{finca_via['NUMERO_DUP'] if finca_via['NUMERO_DUP'] is not None else ''} "
+                    f"{row['cp'] if row['cp'] is not None else ''}"
+                ).strip()
 
+                ws["P9"].value = direccion_texto
+                break
 
-
-
-
-
-
-    resized_png_path = os.path.join(os.path.dirname(png_path), 'resized_' + os.path.basename(png_path))
-    resized_jpg_path = os.path.join(os.path.dirname(jpg_path), 'resized_' + os.path.basename(jpg_path))
-    
+    # Insertar la imagen PNG si existe
     if os.path.exists(png_path):
-        resize_image(png_path, resized_png_path, desired_width, desired_height)
-        img_png = OpenpyxlImage(resized_png_path)
-        img_png.anchor = 'C13'
+        img_png = OpenpyxlImage(png_path)
+        img_png.anchor = 'C13'  # Anclar la imagen en la celda C13
         ws.add_image(img_png)
     else:
         logging.warning(f"No se encontró la imagen PNG en la ruta: {png_path}")
-    
+
+    # Insertar la imagen JPG si existe
     if os.path.exists(jpg_path):
-        resize_image(jpg_path, resized_jpg_path, desired_width, desired_height)
-        img_jpg = OpenpyxlImage(resized_jpg_path)
-        img_jpg.anchor = 'R13'
+        img_jpg = OpenpyxlImage(jpg_path)
+        img_jpg.anchor = 'P13'  # Anclar la imagen en la celda P13
         ws.add_image(img_jpg)
     else:
         logging.warning(f"No se encontró la imagen JPG en la ruta: {jpg_path}")
 
+
 # Función para escribir datos iniciales en el Excel
 def escribir_datos_iniciales(ws, esquema, refcat_value):
-    
     global resultado
+    global fincas_vias_data
 
     ##cabecera
     dfi = resultado
 
+    # Ordenar DataFrame 'dfi' solo por 'ORD_CONS'
+    if 'ORD_CONS' in dfi.columns:
+        dfi = dfi.sort_values(by=['ORD_CONS'])
+    else:
+        logging.warning(f"La columna 'ORD_CONS' no está presente en el DataFrame")
 
-
- # Iterar sobre cada fila del DataFrame
+    # Iterar sobre cada fila del DataFrame
     for _, row in dfi.iterrows():
-         if(row['REFCAT'] == refcat_value):
+        if row['REFCAT'] == refcat_value:
             # Nombre del archivo usando el campo 'exp'
             exp_value = row['exp']
             file_name = f"FICHA_RESUMEN_PLACO23_{exp_value}.xlsx"
@@ -193,12 +197,19 @@ def escribir_datos_iniciales(ws, esquema, refcat_value):
             texto_agregar_4 = f"REFERENCIA CATASTRAL: {REFCAT_value}"
             ws["A9"].value = texto_agregar_4
 
-            # Procesar el campo L7 (DIRECCIÓN)
-            direccion_texto = f"DIRECCIÓN: {row['sigla_via']} {row['situacion']} {row['npoli']}{row['dupli']} {row['cp']}"
-            ws["P9"].value = direccion_texto
+            # Procesar el campo L7 (DIRECCIÓN) usando fincas_vias_data
+            for finca_via in fincas_vias_data[1:]:  # Omitir la primera fila con las cabeceras
+                # Verificar si cada campo es None y reemplazarlo por una cadena vacía si es necesario
+                direccion_texto = (
+                    f"DIRECCIÓN: "
+                    f"{finca_via['SIGLA_DENOM'] if finca_via['SIGLA_DENOM'] is not None else ''} "
+                    f"{finca_via['NUMERO'] if finca_via['NUMERO'] is not None else ''}"
+                    f"{finca_via['NUMERO_DUP'] if finca_via['NUMERO_DUP'] is not None else ''} "
+                    f"{row['cp'] if row['cp'] is not None else ''}"
+                ).strip()
 
-
-
+                ws["P9"].value = direccion_texto
+                break
 
     engine = obtener_conexion()
     
@@ -214,9 +225,9 @@ def escribir_datos_iniciales(ws, esquema, refcat_value):
         "SUP_LOCAL": "I",
         "U_CONS": "J",
         "AP_CO_CO": "K",
-        "ANY_ANTIG": "L"
+        "ANY_ANTIG": "L",
+        "ANY_REFOR": "M"
     }
-
 
     start_row = 14
     query = f'SELECT * FROM "{esquema}"."DATOS_INICIALES" WHERE "REFCAT" = %(refcat)s'
@@ -226,27 +237,51 @@ def escribir_datos_iniciales(ws, esquema, refcat_value):
         logging.error(f"No se encontraron registros con REFCAT = {refcat_value}")
         return False
 
+    # Convertir los datos a una lista de tuplas para ordenarlos manualmente
+    datos_ordenados = []
     for idx, row in df_datos_iniciales.iterrows():
+        # Crear una tupla de (orden, fila completa)
+        datos_ordenados.append((row['ORD_CONS'], row))
+
+    # Ordenar la lista de tuplas por el primer elemento (ORD_CONS)
+    datos_ordenados.sort(key=lambda x: x[0])
+
+    # Escribir los datos ordenados en el Excel
+    for idx, (ord_cons, row) in enumerate(datos_ordenados):
         for campo, col in mapeo_campos.items():
-            if campo in row:
-                valor_campo = row[campo]
-                dest_col = column_index_from_string(col)
-                dest_row = start_row + idx
-                ws.cell(row=dest_row, column=dest_col, value=valor_campo)
-                # Copiar formato de la fila anterior
+            if campo == "ANY_REFOR":
+                # Solo escribir si ANY_REFOR es mayor que 0
+                if row[campo] > 0:
+                    valor_campo = row[campo]
+                    dest_col = column_index_from_string(col)
+                    dest_row = start_row + idx
+                    ws.cell(row=dest_row, column=dest_col, value=valor_campo)
+            else:
+                if campo in row:
+                    valor_campo = row[campo]
+                    # Convertir el valor de CAT_PREDO a entero si es necesario
+                    if campo == "CAT_PREDO" and not pd.isna(valor_campo):
+                        valor_campo = int(valor_campo)
+                    dest_col = column_index_from_string(col)
+                    dest_row = start_row + idx
+                    ws.cell(row=dest_row, column=dest_col, value=valor_campo)
 
-                for col in range(1, ws.max_column + 1):
-                    ws.cell(row=dest_row, column=col)._style = ws.cell(row=start_row, column=col)._style
+        # Aplicar el estilo a toda la fila después de escribir los valores
+        for col in range(1, ws.max_column + 1):
+            ws.cell(row=dest_row, column=col)._style = ws.cell(row=start_row, column=col)._style
                 
-
     return True
+
+
+
+
 
 # Función para escribir datos de SAUCE en el Excel
 def escribir_datos_sauce(ws, archivo_csv):
-    secciones = {"FINCAS": [], "EXPEDIENTE": [], "CONSTRUCCIONES": [], "UNIDADES CONSTRUCTIVAS": []}
+    secciones = {"FINCAS": [], "EXPEDIENTE": [], "CONSTRUCCIONES": [], "UNIDADES CONSTRUCTIVAS": [], "VIAS": []}
     seccion_actual = None
 
-    with open(archivo_csv, 'r') as file:
+    with open(archivo_csv, 'r', encoding='utf-8') as file:
         for line in file:
             if line.strip() == "":
                 seccion_actual = None
@@ -260,8 +295,33 @@ def escribir_datos_sauce(ws, archivo_csv):
                 seccion_actual = "CONSTRUCCIONES"
             elif line.startswith("UNIDADES CONSTRUCTIVAS"):
                 seccion_actual = "UNIDADES CONSTRUCTIVAS"
+            elif line.startswith("VIAS"):
+                seccion_actual = "VIAS"
             elif seccion_actual:
                 secciones[seccion_actual].append(line.strip())
+
+    vias_data = {}
+    for via in secciones["VIAS"]:
+        campos_via = via.split(";")
+        via_id = campos_via[0]
+        vias_data[via_id] = {
+            "SIGLA": campos_via[1],
+            "DENOMINACION": campos_via[2]
+        }
+
+    fincas_data = []
+    for finca in secciones["FINCAS"]:
+        campos_finca = finca.split(";")
+        finca_via = campos_finca[4]
+        if finca_via in vias_data:#hago el cruce por codigo de via entre la seccion FINCAS y la sección VIAS
+            sigla_denom = vias_data[finca_via]["SIGLA"] + " " + vias_data[finca_via]["DENOMINACION"]
+            fincas_data.append({
+                "VIA": finca_via,
+                "NUMERO": campos_finca[5],
+                "NUMERO_DUP": campos_finca[6],
+                "SIGLA_DENOM": sigla_denom,
+                "DENOMINACION": vias_data[finca_via]["DENOMINACION"]
+            })
 
     construcciones_data = []
     for construccion in secciones["CONSTRUCCIONES"]:
@@ -281,6 +341,7 @@ def escribir_datos_sauce(ws, archivo_csv):
             campos_construccion[23],  # Valor para "AA_ANTIGUEDAD"
             campos_construccion[22]   # Valor para "AA_REFORMA"
         ])
+  
 
     for unidad in secciones["UNIDADES CONSTRUCTIVAS"]:
         campos_unidad = unidad.split(";")
@@ -307,17 +368,27 @@ def escribir_datos_sauce(ws, archivo_csv):
         "AA_ANTIGUEDAD": "Z",
         "AA_REFORMA": "AA"
     }
-
+    
     start_row = 14
     for idx, construccion in enumerate(construcciones_data):
         for campo, col in mapeo_campos_sauce.items():
             valor_campo = construccion[list(mapeo_campos_sauce.keys()).index(campo)]
             ws[col + str(start_row + idx)] = valor_campo
             # Copiar formato de la fila anterior
-            
             for col_num in range(1, ws.max_column + 1):
                 ws.cell(row=start_row + idx, column=col_num)._style = ws.cell(row=start_row, column=col_num)._style
 
+    # Variable global para almacenar la información combinada de FINCAS y VIAS
+    global fincas_vias_data
+    fincas_vias_data = []
+
+    for finca in fincas_data:
+        fincas_vias_data.append({
+            "SIGLA_DENOM": finca["SIGLA_DENOM"],
+            "DENOMINACION": finca["DENOMINACION"],
+            "NUMERO": finca["NUMERO"],
+            "NUMERO_DUP": finca["NUMERO_DUP"]
+        })
             
 
 # Función para comparar y resaltar diferencias
@@ -325,52 +396,79 @@ from openpyxl.styles import Border
 
 
 # Función para comparar y resaltar diferencias
+from openpyxl.styles import Font, Alignment, Border, Side
+
+# Definición de bordes y alineación
+thin_side = Side(border_style="thin", color="000000")
+normal_border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thin_side)
+center_alignment = Alignment(horizontal='center', vertical='center')
+
 def comparar_y_resaltar(ws):
-    max_row = ws.max_row
-    col_iniciales_start = 1  # Columna A
-    col_iniciales_end = 13  # Columna M
-    col_sauce_start = 15  # Columna O (14 columnas después de A)
-    
-    for row in range(14, max_row + 1):
-        for col in range(col_iniciales_start, col_iniciales_end + 1):
-            cell_iniciales = ws.cell(row=row, column=col)
-            cell_sauce = ws.cell(row=row, column=col + col_sauce_start - col_iniciales_start)
-            
-            # Obtener los valores de las celdas como texto y limpiar espacios
-            valor_celda_iniciales = str(cell_iniciales.value).strip() if cell_iniciales.value is not None else ""
-            valor_celda_sauce = str(cell_sauce.value).strip() if cell_sauce.value is not None else ""
-            
-            # Comparar los valores de las celdas
-            if valor_celda_iniciales != valor_celda_sauce:
-                # Resaltar el texto en rojo en la parte de SAUCE
-                cell_sauce.font = Font(color="FF0000")  # Rojo
-
-    # Aplicar borde normal a todas las celdas en la parte de Situación Final
-    for row in ws.iter_rows(min_row=14, max_row=max_row, min_col=col_sauce_start, max_col=ws.max_column):
-        for cell in row:
-            cell.border = normal_border
-
-# Aplicar borde normal a todas las celdas en la parte de Situación Inicial
-    for row in ws.iter_rows(min_row=14, max_row=max_row, min_col=col_iniciales_start, max_col=col_iniciales_end):
-        for cell in row:
-            cell.border = normal_border
-    
-        # Definir el estilo de alineación centrada
+    # Definición de estilos
+    thin_side = Side(border_style="thin", color="000000")
+    normal_border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thin_side)
     center_alignment = Alignment(horizontal='center', vertical='center')
-# Aplicar el estilo de alineación centrada a todas las celdas
-    for row in ws.iter_rows():
-        for cell in row:
+
+    # Índices de columnas
+    col_inicial_start = 1   # A
+    col_inicial_end = 13    # M
+    col_final_start = 15    # O
+    col_final_end = 27      # AA
+
+    row = 14
+    max_row = ws.max_row
+
+    while row <= max_row:
+        # Valores de 'local' en inicial y final
+        val_ini = str(ws.cell(row=row, column=2).value or "").strip()
+        val_fin = str(ws.cell(row=row, column=16).value or "").strip()
+
+        if val_ini and val_ini != val_fin:
+            # Desplazar toda la columna O:AA hacia abajo a partir de esta fila
+            rango = f"O{row}:AA{max_row}"
+            ws.move_range(rango, rows=1, cols=0)
+            max_row += 1
+            # Estilo para la fila en blanco insertada
+            for col in range(col_final_start, col_final_end + 1):
+                cell = ws.cell(row=row, column=col)
+                cell.border = normal_border
+                cell.alignment = center_alignment
+            row += 1
+            continue
+
+        # Comparar e ir resaltando diferencias en texto
+        for col in range(col_inicial_start, col_inicial_end + 1):
+            cell_ini = ws.cell(row=row, column=col)
+            cell_fin = ws.cell(row=row, column=col + (col_final_start - col_inicial_start))
+            v_ini = str(cell_ini.value or "").strip()
+            v_fin = str(cell_fin.value or "").strip()
+            if v_ini != v_fin:
+                cell_fin.font = Font(color="FF0000")
+
+        row += 1
+
+    # Aplicar bordes y alineación a todo el bloque inicial y final
+    for block_start, block_end in [(col_inicial_start, col_inicial_end), (col_final_start, col_final_end)]:
+        for r in ws.iter_rows(min_row=14, max_row=ws.max_row, min_col=block_start, max_col=block_end):
+            for cell in r:
+                cell.border = normal_border
+                cell.alignment = center_alignment
+
+    # Alinear resto de celdas (encabezados, etc.)
+    for r in ws.iter_rows():
+        for cell in r:
             cell.alignment = center_alignment
+
+
 
     
 # Función para escribir en la ficha resumen
 def escribir_ficha_resumen(ws, esquema, refcat_value):
     global resultado
+    global fincas_vias_data
     #cabecera
     df = resultado
     
-    
-
     # Iterar sobre cada fila del DataFrame
     for _, row in df.iterrows():
         if(row['REFCAT'] == refcat_value):
@@ -416,9 +514,19 @@ def escribir_ficha_resumen(ws, esquema, refcat_value):
             texto_agregar_4 = f"REFERENCIA CATASTRAL: {REFCAT_value}"
             ws["A9"].value = texto_agregar_4
 
-            # Procesar el campo L7 (DIRECCIÓN)
-            direccion_texto = f"DIRECCIÓN: {row['sigla_via']} {row['situacion']} {row['npoli']}{row['dupli']} {row['cp']}"
-            ws["P9"].value = direccion_texto
+            # Procesar el campo L7 (DIRECCIÓN) usando fincas_vias_data
+            for finca_via in fincas_vias_data[1:]:  # Omitir la primera fila con las cabeceras
+                # Verificar si cada campo es None y reemplazarlo por una cadena vacía si es necesario
+                direccion_texto = (
+                    f"DIRECCIÓN: "
+                    f"{finca_via['SIGLA_DENOM'] if finca_via['SIGLA_DENOM'] is not None else ''} "
+                    f"{finca_via['NUMERO'] if finca_via['NUMERO'] is not None else ''}"
+                    f"{finca_via['NUMERO_DUP'] if finca_via['NUMERO_DUP'] is not None else ''} "
+                    f"{row['cp'] if row['cp'] is not None else ''}"
+                ).strip()
+
+                ws["P9"].value = direccion_texto
+                break
 
             # Procesar el campo_5 (cod_incidencia y cod_incidencia_adicional)
             # Diccionario con códigos y descripciones de tipos de incidencias
@@ -507,14 +615,12 @@ def escribir_ficha_resumen(ws, esquema, refcat_value):
             # Asignar el valor a la celda G29
             ws['G29'].value = observaciones_value
 
-
-
 # Función para procesar cada carpeta en el directorio de origen
 def process_folders(window, output_dir, template_file, origin_dir, esquema, progress_label, progress_bar):
     refcat_list = obtener_refcat(esquema)
     total_folders = len(refcat_list)
 
-    obtener_datos_por_refcat()
+    obtener_datos_por_refcat(esquema)
 
     for index, refcat_value in enumerate(refcat_list):
         refcat_value = refcat_value.strip()  # Asegúrate de que no haya espacios en blanco
@@ -555,14 +661,12 @@ def process_folders(window, output_dir, template_file, origin_dir, esquema, prog
         ws_croquis = wb['CROQUIS']
         ws_ficha_resumen_placo = wb['FICHA RESUMEN PLACO']
         
-        
-      
-        # Agregar imágenes al libro de trabajo
-        add_images_to_excel(ws_croquis, png_path, jpg_path, 700, 700, esquema, refcat_value)
-
         # Escribir datos de SAUCE en el libro de trabajo
         escribir_datos_sauce(ws_sauce, csv_path)
-        
+      
+        # Agregar imágenes al libro de trabajo
+        add_images_to_excel(ws_croquis, png_path, jpg_path, esquema, refcat_value)
+
       # Escribir datos iniciales en el libro de trabajo
         if not escribir_datos_iniciales(ws_iniciales, esquema, refcat_value):
             continue
